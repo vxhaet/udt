@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  background: #09090b;
+  font-family: inherit;
+}
+.leaflet-tooltip {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: #e4e4e7;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.leaflet-tooltip::before {
+  display: none;
+}

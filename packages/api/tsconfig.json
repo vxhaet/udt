@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@udt/db": ["../db/src/index.ts"],
+      "@udt/shared": ["../shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

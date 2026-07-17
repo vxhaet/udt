@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet CSS inlined to avoid SSR issues */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer utilities {
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+}

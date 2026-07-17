@@ -1,0 +1,23 @@
+{
+  "name": "udt",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:generate": "turbo run db:generate",
+    "db:migrate": "cd packages/db && pnpm exec prisma migrate dev --name init",
+    "db:push": "cd packages/db && pnpm exec prisma db push",
+    "db:studio": "cd packages/db && pnpm exec prisma studio",
+    "api:dev": "turbo run dev --filter=@udt/api"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

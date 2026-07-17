@@ -1,0 +1,74 @@
+{
+  "expo": {
+    "name": "UDT",
+    "slug": "udt",
+    "version": "1.0.0",
+    "scheme": "udt",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.udt.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "UDT utilise votre position pour valider les checkpoints.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "UDT utilise votre position en arrière-plan pendant la course.",
+        "NSCameraUsageDescription": "UDT utilise la caméra pour les photos de validation.",
+        "NSPhotoLibraryUsageDescription": "UDT accède à la galerie pour les photos de validation."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#030712"
+      },
+      "package": "com.udt.app",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "UDT utilise votre position pour valider les checkpoints."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "UDT accède à vos photos pour les validations.",
+          "cameraPermission": "UDT utilise la caméra pour les photos de validation."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#3b82f6",
+          "sounds": []
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a1a5053d-faad-4774-bed7-8fe0b380ec1b"
+      }
+    },
+    "owner": "vxhaet"
+  }
+}

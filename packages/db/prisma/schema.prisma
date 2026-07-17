@@ -1,0 +1,323 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum StatutEdition {
+  BROUILLON
+  INSCRIPTION
+  EN_COURS
+  TERMINE
+  ARCHIVE
+}
+
+enum TypeValidation {
+  AUTO
+  MANUELLE
+  MIXTE
+}
+
+enum TypeRegle {
+  IMPOSE_SUIVANT
+  EXCLUSIF_AVEC
+  BONUS_SI_ORDRE
+}
+
+enum StatutEquipe {
+  INSCRITE
+  CONFIRMEE
+  EN_COURSE
+  ARRIVEE
+  DISQUALIFIEE
+}
+
+enum RoleParticipant {
+  CAPITAINE
+  MEMBRE
+}
+
+enum StatutValidation {
+  EN_ATTENTE
+  APPROUVE
+  REJETE
+}
+
+enum RoleUser {
+  SUPER_ADMIN
+  ORGANISATEUR
+  QG
+}
+
+enum TypeCheckpoint {
+  NORMAL
+  DEPART
+  ARRIVEE
+  EPHEMERE_QG
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Edition {
+  id                      String        @id @default(cuid())
+  nom                     String
+  description             String?
+  date_course             DateTime
+  duree_minutes           Int
+  nb_equipes_max          Int
+  // Révélés à devoilement_depart — stockés mais masqués par l'API avant la date
+  point_depart_lat        Float?
+  point_depart_lng        Float?
+  point_arrivee_lat       Float?
+  point_arrivee_lng       Float?
+  // Timestamps de dévoilement progressif
+  devoilement_depart      DateTime      // J-7  : révèle départ/arrivée
+  devoilement_checkpoints DateTime      // J-48h: révèle les CPs (sans points)
+  devoilement_points      DateTime      // J-24h: révèle les points des CPs
+  gel_classement          DateTime      // T-1h : fige l'affichage participants
+  prix_equipe             Int           @default(0) // en centimes (0 = gratuit)
+  slug                    String?       @unique     // ex: "udt-2026", utilisé dans les URLs
+  nb_participants_par_equipe Int        @default(4)
+  solo_autorise           Boolean       @default(false)
+  reglement               String?       // texte markdown
+  statut                  StatutEdition @default(BROUILLON)
+  created_at              DateTime      @default(now())
+  updated_at              DateTime      @updatedAt
+
+  checkpoints       Checkpoint[]
+  equipes           Equipe[]
+  segments_strava   SegmentStrava[]
+  itineraires       ItineraireThematique[]
+  formats           FormatCourse[]
+  config            ConfigEdition?
+}
+
+model Checkpoint {
+  id                      String         @id @default(cuid())
+  edition_id              String
+  nom                     String
+  description             String?
+  latitude                Float
+  longitude               Float
+  points                  Int
+  rayon_validation_metres Int            @default(50)
+  type_validation         TypeValidation @default(AUTO)
+  disparait_apres_passage Boolean        @default(false)
+  actif                   Boolean        @default(true)
+  ordre_affichage         Int?
+  type                    TypeCheckpoint @default(NORMAL)
+  tous_formats            Boolean        @default(true)
+  expires_at              DateTime?
+  created_at              DateTime       @default(now())
+  updated_at              DateTime       @updatedAt
+
+  edition      Edition           @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  validations  Validation[]
+  regles       RegleCheckpoint[] @relation("CheckpointSource")
+  regles_cible RegleCheckpoint[] @relation("CheckpointCible")
+  itineraires  ItineraireThematique[] @relation("ItineraireCheckpoints")
+  formats      FormatCourse[]    @relation("CheckpointFormats")
+
+  @@index([edition_id])
+  @@index([edition_id, actif])
+}
+
+model FormatCourse {
+  id            String     @id @default(cuid())
+  edition_id    String
+  nom           String
+  duree_minutes Int
+  created_at    DateTime   @default(now())
+
+  edition     Edition      @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  checkpoints Checkpoint[] @relation("CheckpointFormats")
+  equipes     Equipe[]
+
+  @@index([edition_id])
+}
+
+model RegleCheckpoint {
+  id                  String    @id @default(cuid())
+  checkpoint_id       String
+  type_regle          TypeRegle
+  checkpoint_cible_id String?
+  // Paramètres spécifiques : ex. { "ordre": 3, "bonus": 10 } pour BONUS_SI_ORDRE
+  parametres          Json      @default("{}")
+
+  checkpoint       Checkpoint  @relation("CheckpointSource", fields: [checkpoint_id], references: [id], onDelete: Cascade)
+  checkpoint_cible Checkpoint? @relation("CheckpointCible", fields: [checkpoint_cible_id], references: [id])
+
+  @@index([checkpoint_id])
+}
+
+model Equipe {
+  id                     String       @id @default(cuid())
+  edition_id             String
+  nom                    String
+  email_capitaine        String?
+  emails_membres         String[]
+  format_course_id       String?
+  code_acces             String       @unique
+  score_total            Int          @default(0)
+  distance_vol_oiseau_km Float        @default(0)
+  statut                 StatutEquipe @default(INSCRITE)
+  heure_depart           DateTime?
+  heure_arrivee          DateTime?
+  created_at             DateTime     @default(now())
+  updated_at             DateTime     @updatedAt
+
+  edition                Edition               @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  format_course          FormatCourse?         @relation(fields: [format_course_id], references: [id])
+  participants           Participant[]
+  validations            Validation[]
+  itineraires_completes  ItineraireComplete[]
+
+  @@index([edition_id])
+  @@index([edition_id, statut])
+}
+
+model Participant {
+  id                  String          @id @default(cuid())
+  equipe_id           String
+  nom                 String
+  prenom              String
+  email               String
+  strava_athlete_id    String?
+  strava_access_token  String?
+  strava_refresh_token String?
+  // Token de push Expo pour les notifications
+  expo_push_token     String?
+  role                RoleParticipant @default(MEMBRE)
+  created_at          DateTime        @default(now())
+
+  equipe              Equipe              @relation(fields: [equipe_id], references: [id], onDelete: Cascade)
+  performances_strava PerformanceStrava[]
+
+  @@index([equipe_id])
+  @@index([strava_athlete_id])
+}
+
+model Validation {
+  id                String           @id @default(cuid())
+  equipe_id         String
+  checkpoint_id     String
+  validated_at      DateTime         @default(now())
+  latitude          Float
+  longitude         Float
+  photo_url         String?
+  statut            StatutValidation @default(EN_ATTENTE)
+  validateur_id     String?
+  points_accordes   Int              @default(0)
+  commentaire_admin String?
+  created_at        DateTime         @default(now())
+
+  equipe     Equipe     @relation(fields: [equipe_id], references: [id], onDelete: Cascade)
+  checkpoint Checkpoint @relation(fields: [checkpoint_id], references: [id])
+  validateur User?      @relation(fields: [validateur_id], references: [id])
+
+  @@index([equipe_id])
+  @@index([checkpoint_id])
+  @@index([equipe_id, checkpoint_id])
+  @@index([statut])
+}
+
+model SegmentStrava {
+  id                String   @id @default(cuid())
+  edition_id        String
+  strava_segment_id String
+  nom               String
+  description       String?
+  points_premier    Int
+  points_second     Int
+  points_troisieme  Int
+  created_at        DateTime @default(now())
+
+  edition      Edition             @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  performances PerformanceStrava[]
+
+  @@unique([edition_id, strava_segment_id])
+  @@index([edition_id])
+}
+
+model PerformanceStrava {
+  id             String   @id @default(cuid())
+  participant_id String
+  segment_id     String
+  temps_secondes Int
+  classement     Int
+  points_gagnes  Int
+  synced_at      DateTime @default(now())
+
+  participant Participant   @relation(fields: [participant_id], references: [id], onDelete: Cascade)
+  segment     SegmentStrava @relation(fields: [segment_id], references: [id], onDelete: Cascade)
+
+  @@unique([participant_id, segment_id])
+  @@index([participant_id])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password_hash String
+  role          RoleUser @default(QG)
+  created_at    DateTime @default(now())
+
+  validations Validation[]
+}
+
+model ItineraireThematique {
+  id           String   @id @default(cuid())
+  edition_id   String
+  nom          String
+  description  String?
+  points_bonus Int      @default(0)
+  actif        Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  edition    Edition              @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+  checkpoints Checkpoint[]        @relation("ItineraireCheckpoints")
+  completes   ItineraireComplete[]
+
+  @@index([edition_id])
+}
+
+model ItineraireComplete {
+  id              String   @id @default(cuid())
+  equipe_id       String
+  itineraire_id   String
+  completed_at    DateTime @default(now())
+  points_accordes Int
+
+  equipe      Equipe               @relation(fields: [equipe_id], references: [id], onDelete: Cascade)
+  itineraire  ItineraireThematique @relation(fields: [itineraire_id], references: [id], onDelete: Cascade)
+
+  @@unique([equipe_id, itineraire_id])
+  @@index([equipe_id])
+  @@index([itineraire_id])
+}
+
+model ConfigEdition {
+  id                              String  @id @default(cuid())
+  edition_id                      String  @unique
+  checkpoints_disparaissent_actif Boolean @default(true)
+  checkpoint_suivant_impose_actif Boolean @default(true)
+  itineraires_thematiques_actif   Boolean @default(true)
+  checkpoint_ephemere_qg_actif    Boolean @default(true)
+  segments_strava_actif           Boolean @default(true)
+  gel_classement_actif            Boolean @default(true)
+  devoilement_progressif_actif    Boolean @default(true)
+  ephemere_qg_duree_minutes       Int     @default(30)
+  ephemere_qg_points_defaut       Int     @default(10)
+
+  edition Edition @relation(fields: [edition_id], references: [id], onDelete: Cascade)
+}

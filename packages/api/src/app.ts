@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -15,7 +15,7 @@ import { formatsRouter } from './routes/formats';
 import { inscriptionsRouter } from './routes/inscriptions';
 import { errorHandler } from './middleware/error';
 
-export const app = express();
+export const app: Express = express();
 
 app.use(helmet());
 app.use(

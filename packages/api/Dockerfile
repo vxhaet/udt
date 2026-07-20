@@ -55,6 +55,9 @@ COPY --from=build /app/node_modules/.pnpm node_modules/.pnpm
 COPY --from=build /app/packages/shared/dist packages/shared/dist
 COPY --from=build /app/packages/api/dist packages/api/dist
 
+# Workspace symlinks (pnpm links @udt/* → packages/*)
+COPY --from=build /app/node_modules/@udt node_modules/@udt
+
 ENV NODE_ENV=production
 EXPOSE 3001
 

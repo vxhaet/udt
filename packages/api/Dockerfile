@@ -45,8 +45,7 @@ RUN pnpm install --frozen-lockfile --prod
 # Prisma client + schema (needed at runtime)
 COPY --from=build /app/packages/db/prisma packages/db/prisma
 COPY --from=build /app/packages/db/src packages/db/src
-COPY --from=build /app/node_modules/.pnpm/@prisma+client*/node_modules/.prisma node_modules/.prisma
-COPY --from=build /app/node_modules/.prisma node_modules/.prisma
+COPY --from=build /app/node_modules/.pnpm node_modules/.pnpm
 
 # Compiled output
 COPY --from=build /app/packages/shared/dist packages/shared/dist

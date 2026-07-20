@@ -33,6 +33,8 @@ RUN pnpm --filter @udt/api exec tsc --skipLibCheck --noEmit false
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine
 
+RUN apk add --no-cache openssl
+
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app

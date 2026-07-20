@@ -190,7 +190,7 @@ equipesRouter.post('/stripe/webhook', async (req, res, next) => {
         const equipe = await prisma.equipe.update({
           where: { id: equipeId },
           data: { statut: 'CONFIRMEE' },
-          include: { format_course: true },
+          include: { format_course: true, edition: { select: { date_course: true } } },
         });
         if (equipe.email_capitaine) {
           sendConfirmationEmail({
@@ -199,6 +199,7 @@ equipesRouter.post('/stripe/webhook', async (req, res, next) => {
             code_acces: equipe.code_acces,
             emails_membres: equipe.emails_membres,
             nom_format: equipe.format_course?.nom,
+            date_course: equipe.edition.date_course,
           }).catch(console.error);
         }
       }

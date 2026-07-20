@@ -50,7 +50,15 @@ map.setView([46.5,2.5],6);
 L.control.zoom({position:'bottomright'}).addTo(map);
 
 var _user=null,_markers={},_circles={};
-var COLORS={DEPART:'#22c55e',ARRIVEE:'#ef4444',EPHEMERE_QG:'#f97316',NORMAL:'#3b82f6'};
+var COLORS={DEPART:'#22c55e',ARRIVEE:'#ef4444',EPHEMERE_QG:'#f97316'};
+
+function pointsColor(pts){
+  if(pts>=50)return '#7c3aed';
+  if(pts>=40)return '#f97316';
+  if(pts>=30)return '#eab308';
+  if(pts>=20)return '#06b6d4';
+  return '#60a5fa';
+}
 
 function resolveType(cp){
   if(cp.type)return cp.type;
@@ -60,7 +68,14 @@ function resolveType(cp){
   return 'NORMAL';
 }
 
-function mkIcon(color,label,dim,pulse){
+function mkIcon(color,label,dim,pulse,isArrivee){
+  if(isArrivee){
+    return L.divIcon({
+      className:'',
+      html:'<div style="width:32px;height:32px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:'+(dim?0.45:1)+';position:relative"><svg viewBox="0 0 32 32" style="position:absolute;inset:0;width:100%;height:100%"><rect width="8" height="8" x="0" y="0" fill="#111"/><rect width="8" height="8" x="8" y="0" fill="white"/><rect width="8" height="8" x="16" y="0" fill="#111"/><rect width="8" height="8" x="24" y="0" fill="white"/><rect width="8" height="8" x="0" y="8" fill="white"/><rect width="8" height="8" x="8" y="8" fill="#111"/><rect width="8" height="8" x="16" y="8" fill="white"/><rect width="8" height="8" x="24" y="8" fill="#111"/><rect width="8" height="8" x="0" y="16" fill="#111"/><rect width="8" height="8" x="8" y="16" fill="white"/><rect width="8" height="8" x="16" y="16" fill="#111"/><rect width="8" height="8" x="24" y="16" fill="white"/><rect width="8" height="8" x="0" y="24" fill="white"/><rect width="8" height="8" x="8" y="24" fill="#111"/><rect width="8" height="8" x="16" y="24" fill="white"/><rect width="8" height="8" x="24" y="24" fill="#111"/></svg><span style="position:relative;z-index:1;font-size:12px;font-weight:900;color:white;text-shadow:0 0 4px #000,0 0 4px #000">A</span></div>',
+      iconSize:[32,32],iconAnchor:[16,16]
+    });
+  }
   return L.divIcon({
     className:'',
     html:'<div class="'+(pulse?'udt-pulse':'')+'" style="width:32px;height:32px;border-radius:50%;background:'+color+';border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:white;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:'+(dim?0.45:1)+'">'+label+'</div>',
@@ -83,10 +98,10 @@ window.updateCheckpoints=function(data){
     pts.push([cp.latitude,cp.longitude]);
     var t=resolveType(cp);
     var isVal=validated.has(cp.id);
-    var color=isVal?'#6b7280':(COLORS[t]||'#3b82f6');
+    var color=isVal?'#6b7280':(COLORS[t]||(t==='NORMAL'?pointsColor(cp.points||0):'#3b82f6'));
     var label=t==='DEPART'?'D':t==='ARRIVEE'?'A':(isVal?'✓':String(cp.ordre_affichage||cp.points||'?'));
     var pulse=t==='EPHEMERE_QG'&&!isVal;
-    var m=L.marker([cp.latitude,cp.longitude],{icon:mkIcon(color,label,isVal,pulse)}).addTo(map);
+    var m=L.marker([cp.latitude,cp.longitude],{icon:mkIcon(color,label,isVal,pulse,t==='ARRIVEE'&&!isVal)}).addTo(map);
     var tappable=!isVal&&t!=='DEPART'&&t!=='ARRIVEE';
     if(tappable)(function(c){m.on('click',function(){post({type:'CP_TAP',checkpoint:c});});})(cp);
     _markers[cp.id]=m;
@@ -478,11 +493,30 @@ export default function CarteScreen() {
 
           {/* Légende */}
           <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
+              <Text style={styles.legendText}>Départ</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={styles.legendChecker}>
+                <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
+                <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
+                <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
+                <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
+              </View>
+              <Text style={styles.legendText}>Arrivée</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
+              <Text style={styles.legendText}>QG Eph.</Text>
+            </View>
+            <View style={styles.legendSeparator} />
             {[
-              { label: 'Départ', color: '#22c55e' },
-              { label: 'Arrivée', color: '#ef4444' },
-              { label: 'QG Eph.', color: '#f97316' },
-              { label: 'Normal', color: '#3b82f6' },
+              { label: '10 pts', color: '#60a5fa' },
+              { label: '20 pts', color: '#06b6d4' },
+              { label: '30 pts', color: '#eab308' },
+              { label: '40 pts', color: '#f97316' },
+              { label: '50 pts', color: '#7c3aed' },
             ].map(({ label, color }) => (
               <View key={label} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color }]} />
@@ -636,7 +670,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#1e293b',
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  legendSeparator: { height: 1, backgroundColor: '#1e293b', marginVertical: 4 },
   legendDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
+  legendChecker: {
+    width: 8, height: 8, borderRadius: 1, marginRight: 6, overflow: 'hidden',
+    flexDirection: 'row', flexWrap: 'wrap',
+  },
+  checkerCell: { width: 4, height: 4 },
   legendText: { color: '#9ca3af', fontSize: 11 },
 
   // Bouton FAB "Valider un checkpoint"

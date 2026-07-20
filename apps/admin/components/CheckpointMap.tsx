@@ -59,6 +59,16 @@ function makeCircleIcon(color: string, label: string, pulse = false) {
   });
 }
 
+function makeCheckerIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);position:relative"><svg viewBox="0 0 28 28" style="position:absolute;inset:0;width:100%;height:100%"><rect width="7" height="7" x="0" y="0" fill="#111"/><rect width="7" height="7" x="7" y="0" fill="white"/><rect width="7" height="7" x="14" y="0" fill="#111"/><rect width="7" height="7" x="21" y="0" fill="white"/><rect width="7" height="7" x="0" y="7" fill="white"/><rect width="7" height="7" x="7" y="7" fill="#111"/><rect width="7" height="7" x="14" y="7" fill="white"/><rect width="7" height="7" x="21" y="7" fill="#111"/><rect width="7" height="7" x="0" y="14" fill="#111"/><rect width="7" height="7" x="7" y="14" fill="white"/><rect width="7" height="7" x="14" y="14" fill="#111"/><rect width="7" height="7" x="21" y="14" fill="white"/><rect width="7" height="7" x="0" y="21" fill="white"/><rect width="7" height="7" x="7" y="21" fill="#111"/><rect width="7" height="7" x="14" y="21" fill="white"/><rect width="7" height="7" x="21" y="21" fill="#111"/></svg><span style="position:relative;z-index:1;font-size:11px;font-weight:900;color:white;text-shadow:0 0 3px #000,0 0 3px #000">A</span></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+  });
+}
+
 function makePendingIcon() {
   return L.divIcon({
     className: '',
@@ -78,11 +88,26 @@ function makePendingIcon() {
 // ── Couleurs ──────────────────────────────────────────────────────────────────
 
 const TYPE_COLORS: Record<string, string> = {
-  NORMAL: '#3b82f6',
   DEPART: '#22c55e',
   ARRIVEE: '#ef4444',
   EPHEMERE_QG: '#f97316',
 };
+
+function pointsColor(points: number): string {
+  if (points >= 50) return '#7c3aed';
+  if (points >= 40) return '#f97316';
+  if (points >= 30) return '#eab308';
+  if (points >= 20) return '#06b6d4';
+  return '#60a5fa';
+}
+
+const POINTS_LEGEND = [
+  { label: '10 pts', color: '#60a5fa' },
+  { label: '20 pts', color: '#06b6d4' },
+  { label: '30 pts', color: '#eab308' },
+  { label: '40 pts', color: '#f97316' },
+  { label: '50 pts', color: '#7c3aed' },
+] as const;
 
 // ── Label temps restant pour EPHEMERE_QG ──────────────────────────────────────
 
@@ -175,7 +200,9 @@ export default function CheckpointMap({ checkpoints, onMapClick, pendingMarker }
       checkpoints.flatMap((cp, idx) => {
         const pos = safeCoords(cp.latitude, cp.longitude);
         if (!pos) return [];
-        const color = cp.actif ? (TYPE_COLORS[cp.type] ?? '#3b82f6') : '#6b7280';
+        const color = cp.actif
+          ? (TYPE_COLORS[cp.type] ?? (cp.type === 'NORMAL' ? pointsColor(cp.points) : '#3b82f6'))
+          : '#6b7280';
         const label =
           cp.type === 'DEPART' ? 'D'
           : cp.type === 'ARRIVEE' ? 'A'
@@ -224,7 +251,7 @@ export default function CheckpointMap({ checkpoints, onMapClick, pendingMarker }
 
         {/* Markers des checkpoints existants */}
         {validCheckpoints.map(({ cp, pos, color, label, pulse }) => (
-          <Marker key={`marker-${cp.id}`} position={pos} icon={makeCircleIcon(color, label, pulse)}>
+          <Marker key={`marker-${cp.id}`} position={pos} icon={cp.type === 'ARRIVEE' && cp.actif ? makeCheckerIcon() : makeCircleIcon(color, label, pulse)}>
             <Popup>
               <div className="text-sm">
                 <strong>{cp.nom}</strong>
@@ -282,6 +309,34 @@ export default function CheckpointMap({ checkpoints, onMapClick, pendingMarker }
           </div>
         </div>
       )}
+
+      {/* Légende */}
+      <div className="absolute bottom-3 left-3 z-[1000] bg-gray-900/90 backdrop-blur-sm rounded-lg p-2.5 border border-gray-700 text-xs space-y-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#22c55e' }} />
+          <span className="text-gray-300">Départ</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <svg className="w-2.5 h-2.5 shrink-0" viewBox="0 0 10 10">
+            <rect width="5" height="5" x="0" y="0" fill="#111" />
+            <rect width="5" height="5" x="5" y="0" fill="white" />
+            <rect width="5" height="5" x="0" y="5" fill="white" />
+            <rect width="5" height="5" x="5" y="5" fill="#111" />
+          </svg>
+          <span className="text-gray-300">Arrivée</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#f97316' }} />
+          <span className="text-gray-300">QG Eph.</span>
+        </div>
+        <div className="border-t border-gray-700 my-1" />
+        {POINTS_LEGEND.map(({ label, color }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+            <span className="text-gray-400">{label}</span>
+          </div>
+        ))}
+      </div>
 
       {/* Bouton plein écran */}
       <button

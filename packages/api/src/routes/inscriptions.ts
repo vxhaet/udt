@@ -101,6 +101,7 @@ inscriptionsRouter.post('/:editionId', async (req, res, next) => {
         code_acces,
         emails_membres: body.emails_membres,
         nom_format: nomFormat,
+        date_course: edition.date_course,
       }).catch(console.error);
 
       return res.status(201).json({
@@ -115,6 +116,9 @@ inscriptionsRouter.post('/:editionId', async (req, res, next) => {
       ? `Inscription UDT — ${edition.nom} (${nomFormat})`
       : `Inscription UDT — ${edition.nom}`;
 
+    const webBase = process.env.WEB_URL ?? 'http://localhost:3002';
+    const editionSlug = edition.slug ?? req.params.editionId;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -128,8 +132,8 @@ inscriptionsRouter.post('/:editionId', async (req, res, next) => {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL}/inscription/${req.params.editionId}/success?code=${code_acces}`,
-      cancel_url: `${process.env.FRONTEND_URL}/inscription/${req.params.editionId}`,
+      success_url: `${webBase}/${editionSlug}/inscription/success?code=${code_acces}`,
+      cancel_url: `${webBase}/${editionSlug}/inscription`,
       metadata: { equipeId: equipe.id, editionId: req.params.editionId },
     });
 

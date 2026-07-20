@@ -16,7 +16,8 @@
         "NSLocationWhenInUseUsageDescription": "UDT utilise votre position pour valider les checkpoints.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "UDT utilise votre position en arrière-plan pendant la course.",
         "NSCameraUsageDescription": "UDT utilise la caméra pour les photos de validation.",
-        "NSPhotoLibraryUsageDescription": "UDT accède à la galerie pour les photos de validation."
+        "NSPhotoLibraryUsageDescription": "UDT accède à la galerie pour les photos de validation.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

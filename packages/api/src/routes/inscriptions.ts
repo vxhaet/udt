@@ -7,7 +7,7 @@ import { AppError } from '../middleware/error';
 import Stripe from 'stripe';
 import { sendConfirmationEmail } from '../services/email';
 
-export const inscriptionsRouter = Router();
+export const inscriptionsRouter: Router = Router();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 

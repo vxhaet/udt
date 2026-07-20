@@ -10,7 +10,7 @@ import { sendConfirmationEmail } from '../services/email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-export const equipesRouter = Router();
+export const equipesRouter: Router = Router();
 
 function generateCode(): string {
   return Math.random().toString(36).slice(2, 10).toUpperCase();

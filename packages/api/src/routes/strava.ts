@@ -5,7 +5,7 @@ import { requireParticipant, requireUser } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 import { syncStravaPerformances, syncEditionStravaPerformances } from '../services/strava';
 
-export const stravaRouter = Router();
+export const stravaRouter: Router = Router();
 
 // GET /strava/auth — Redirige vers l'OAuth Strava (flow web)
 stravaRouter.get('/auth', requireParticipant(), (req, res) => {

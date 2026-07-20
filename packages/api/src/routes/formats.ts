@@ -4,7 +4,7 @@ import { CreateFormatCourseSchema } from '@udt/shared';
 import { requireUser } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 
-export const formatsRouter = Router();
+export const formatsRouter: Router = Router();
 
 // GET /editions/:id/formats — public (utilisé par la page d'inscription)
 formatsRouter.get('/:id/formats', async (req, res, next) => {

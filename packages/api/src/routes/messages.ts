@@ -9,7 +9,7 @@ import { Expo, type ExpoPushMessage } from 'expo-server-sdk';
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
-export const messagesRouter = Router();
+export const messagesRouter: Router = Router();
 
 // POST /editions/:id/messages
 messagesRouter.post('/:id/messages', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {

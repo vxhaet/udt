@@ -4,7 +4,7 @@ import { CreateItineraireThematiqueSchema } from '@udt/shared';
 import { requireUser } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 
-export const itinerairesRouter = Router();
+export const itinerairesRouter: Router = Router();
 
 // GET /editions/:id/itineraires
 itinerairesRouter.get('/:id/itineraires', requireUser(), async (req, res, next) => {

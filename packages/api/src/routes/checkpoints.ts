@@ -10,7 +10,7 @@ const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
 const FORMAT_INCLUDE = { formats: { select: { id: true, nom: true, duree_minutes: true } } };
 
-export const checkpointsRouter = Router();
+export const checkpointsRouter: Router = Router();
 
 // GET /editions/:id/checkpoints
 checkpointsRouter.get('/:id/checkpoints', optionalAuth(), async (req, res, next) => {

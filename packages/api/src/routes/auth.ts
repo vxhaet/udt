@@ -7,7 +7,7 @@ import type { UserTokenPayload } from '@udt/shared';
 import { AppError } from '../middleware/error';
 import { requireUser } from '../middleware/auth';
 
-export const authRouter = Router();
+export const authRouter: Router = Router();
 
 // POST /auth/login
 authRouter.post('/login', async (req, res, next) => {

@@ -4,7 +4,7 @@ import { UpdateConfigEditionSchema } from '@udt/shared';
 import { requireUser } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 
-export const configRouter = Router();
+export const configRouter: Router = Router();
 
 // GET /editions/:id/config
 configRouter.get('/:id/config', requireUser(), async (req, res, next) => {

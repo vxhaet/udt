@@ -5,7 +5,7 @@ import type { ClassementEntry } from '@udt/shared';
 import { requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 
-export const editionsRouter = Router();
+export const editionsRouter: Router = Router();
 
 // POST /editions
 editionsRouter.post('/', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async (req, res, next) => {

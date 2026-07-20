@@ -9,7 +9,7 @@ import { evaluateRules } from '../services/rules';
 import { emitToEdition, emitToEquipe, emitToAdmins } from '../ws';
 import { redis, keys } from '../config/redis';
 
-export const validationsRouter = Router();
+export const validationsRouter: Router = Router();
 
 // POST /validations — Soumettre une validation depuis l'app mobile
 validationsRouter.post('/', requireParticipant(), async (req, res, next) => {

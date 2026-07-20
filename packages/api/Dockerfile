@@ -25,6 +25,7 @@ COPY packages/api/ packages/api/
 RUN pnpm --filter @udt/db exec prisma generate
 
 # Build db + shared + api
+RUN pnpm --filter @udt/db add -D @types/node
 RUN pnpm --filter @udt/db exec tsc
 RUN pnpm --filter @udt/shared exec tsc
 RUN pnpm --filter @udt/api exec tsc --skipLibCheck --noEmit false

@@ -24,7 +24,8 @@ COPY packages/api/ packages/api/
 # Generate Prisma client
 RUN pnpm --filter @udt/db exec prisma generate
 
-# Build shared + api
+# Build db + shared + api
+RUN pnpm --filter @udt/db exec tsc
 RUN pnpm --filter @udt/shared exec tsc
 RUN pnpm --filter @udt/api exec tsc --skipLibCheck --noEmit false
 
@@ -44,7 +45,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 # Prisma client + schema (needed at runtime)
 COPY --from=build /app/packages/db/prisma packages/db/prisma
-COPY --from=build /app/packages/db/src packages/db/src
+COPY --from=build /app/packages/db/dist packages/db/dist
 COPY --from=build /app/node_modules/.pnpm node_modules/.pnpm
 
 # Compiled output

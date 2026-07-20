@@ -1,8 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true,
     "paths": {
       "@udt/db": ["../db/src/index.ts"],
       "@udt/shared": ["../shared/src/index.ts"]

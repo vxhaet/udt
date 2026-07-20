@@ -26,7 +26,7 @@ RUN pnpm --filter @udt/db exec prisma generate
 
 # Build shared + api
 RUN pnpm --filter @udt/shared exec tsc
-RUN pnpm --filter @udt/api exec tsc
+RUN pnpm --filter @udt/api exec tsc --skipLibCheck --noEmit false
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine

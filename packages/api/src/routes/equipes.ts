@@ -6,7 +6,7 @@ import type { ParticipantTokenPayload } from '@udt/shared';
 import { requireParticipant, requireUser } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 import Stripe from 'stripe';
-import { sendConfirmationEmail } from '../services/email';
+import { sendConfirmationEmail, sendAdminNotification } from '../services/email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -190,7 +190,7 @@ equipesRouter.post('/stripe/webhook', async (req, res, next) => {
         const equipe = await prisma.equipe.update({
           where: { id: equipeId },
           data: { statut: 'CONFIRMEE' },
-          include: { format_course: true, edition: { select: { date_course: true } } },
+          include: { format_course: true, participants: true, edition: { select: { date_course: true } } },
         });
         if (equipe.email_capitaine) {
           sendConfirmationEmail({
@@ -200,6 +200,15 @@ equipesRouter.post('/stripe/webhook', async (req, res, next) => {
             emails_membres: equipe.emails_membres,
             nom_format: equipe.format_course?.nom,
             date_course: equipe.edition.date_course,
+          }).catch(console.error);
+
+          const capitaine = equipe.participants.find((p) => p.role === 'CAPITAINE');
+          sendAdminNotification({
+            nom_equipe: equipe.nom,
+            nom_capitaine: capitaine ? `${capitaine.prenom} ${capitaine.nom}` : equipe.email_capitaine,
+            email_capitaine: equipe.email_capitaine,
+            nom_format: equipe.format_course?.nom,
+            date_inscription: new Date(),
           }).catch(console.error);
         }
       }

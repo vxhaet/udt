@@ -66,6 +66,46 @@ function downloadButton(): string {
 </table>`;
 }
 
+export async function sendAdminNotification(opts: {
+  nom_equipe: string;
+  nom_capitaine: string;
+  email_capitaine: string;
+  nom_format?: string;
+  date_inscription: Date;
+}): Promise<void> {
+  const resend = getResend();
+  if (!resend) return;
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim()).filter(Boolean);
+  if (adminEmails.length === 0) return;
+
+  const dateStr = opts.date_inscription.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  const rows = [
+    infoLine('Équipe', opts.nom_equipe),
+    opts.nom_format ? infoLine('Format', opts.nom_format) : '',
+    infoLine('Capitaine', opts.nom_capitaine),
+    infoLine('Email', opts.email_capitaine),
+    infoLine('Date d\'inscription', dateStr),
+  ].join('');
+
+  const content = `
+<h1 style="margin:0 0 8px;font-size:22px;color:#1a1a1a">Nouvelle inscription</h1>
+<p style="margin:0 0 20px;font-size:15px;color:#555">Une nouvelle équipe vient de s'inscrire à l'Ultra DéTour.</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #eee;border-radius:8px;padding:12px 16px">${rows}</table>`;
+
+  for (const to of adminEmails) {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Nouvelle inscription — ${opts.nom_equipe}`,
+      html: emailLayout(content),
+    });
+  }
+}
+
 export async function sendConfirmationEmail(opts: {
   email: string;
   nom_equipe: string;

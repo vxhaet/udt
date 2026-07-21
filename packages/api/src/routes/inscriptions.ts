@@ -5,7 +5,7 @@ import { InscriptionSchema } from '@udt/shared';
 import type { ParticipantTokenPayload } from '@udt/shared';
 import { AppError } from '../middleware/error';
 import Stripe from 'stripe';
-import { sendConfirmationEmail } from '../services/email';
+import { sendConfirmationEmail, sendAdminNotification } from '../services/email';
 
 export const inscriptionsRouter: Router = Router();
 
@@ -102,6 +102,14 @@ inscriptionsRouter.post('/:editionId', async (req, res, next) => {
         emails_membres: body.emails_membres,
         nom_format: nomFormat,
         date_course: edition.date_course,
+      }).catch(console.error);
+
+      sendAdminNotification({
+        nom_equipe: body.nom_equipe,
+        nom_capitaine: `${body.capitaine.prenom} ${body.capitaine.nom}`,
+        email_capitaine: body.capitaine.email,
+        nom_format: nomFormat,
+        date_inscription: new Date(),
       }).catch(console.error);
 
       return res.status(201).json({

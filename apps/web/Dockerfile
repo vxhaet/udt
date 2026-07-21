@@ -8,6 +8,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/ packages/shared/
 COPY apps/web/ apps/web/
 RUN pnpm --filter @udt/shared exec tsc
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm --filter @udt/web build
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@udt/web", "start"]

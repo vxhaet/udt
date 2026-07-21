@@ -5,7 +5,8 @@ import { initWebSocket } from './ws';
 import { connectRedis } from './config/redis';
 import { startDevoilementJobs } from './jobs/devoilement';
 
-const PORT = process.env.PORT ?? 3001;
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
 
 async function bootstrap() {
   await connectRedis();
@@ -14,8 +15,8 @@ async function bootstrap() {
   initWebSocket(server);
   startDevoilementJobs();
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[API] Running on http://0.0.0.0:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`[API] Running on http://${HOST}:${PORT}`);
     console.log(`[API] Environment: ${process.env.NODE_ENV ?? 'development'}`);
   });
 
@@ -29,4 +30,3 @@ bootstrap().catch((err) => {
   console.error('[API] Fatal error during bootstrap:', err);
   process.exit(1);
 });
-# cache bust Mar 21 jul 2026 19:29:00 CEST

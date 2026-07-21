@@ -17,10 +17,13 @@ import { errorHandler } from './middleware/error';
 
 export const app: Express = express();
 
+const corsOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002'].filter(Boolean) as string[];
+console.log('[CORS] Origines autorisées:', corsOrigins);
+
 app.use(helmet());
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002'].filter(Boolean) as string[],
+    origin: corsOrigins,
     credentials: true,
   }),
 );

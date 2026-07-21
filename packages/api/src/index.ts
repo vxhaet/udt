@@ -14,8 +14,8 @@ async function bootstrap() {
   initWebSocket(server);
   startDevoilementJobs();
 
-  server.listen(PORT, () => {
-    console.log(`[API] Running on http://localhost:${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[API] Running on http://0.0.0.0:${PORT}`);
     console.log(`[API] Environment: ${process.env.NODE_ENV ?? 'development'}`);
   });
 

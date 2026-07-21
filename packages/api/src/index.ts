@@ -5,7 +5,7 @@ import { initWebSocket } from './ws';
 import { connectRedis } from './config/redis';
 import { startDevoilementJobs } from './jobs/devoilement';
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 async function bootstrap() {

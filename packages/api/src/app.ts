@@ -20,7 +20,7 @@ export const app: Express = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: [process.env.FRONTEND_URL!, 'http://localhost:3000', 'http://localhost:3002'],
+    origin: [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002'].filter(Boolean) as string[],
     credentials: true,
   }),
 );

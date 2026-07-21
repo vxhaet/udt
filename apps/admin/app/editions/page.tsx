@@ -7,15 +7,16 @@ import clsx from 'clsx';
 import { apiFetch, type Edition } from '@/lib/api';
 
 const STATUT: Record<string, { label: string; color: string }> = {
-  BROUILLON:   { label: 'Brouillon',   color: 'bg-gray-500/20 text-gray-400' },
+  BROUILLON:   { label: 'Brouillon',    color: 'bg-gray-500/20 text-gray-400' },
   INSCRIPTION: { label: 'Inscriptions', color: 'bg-blue-500/20 text-blue-400' },
+  CONFIRMEE:   { label: 'Confirmée',   color: 'bg-yellow-500/20 text-yellow-400' },
   EN_COURS:    { label: 'En cours',    color: 'bg-green-500/20 text-green-400 animate-pulse' },
-  TERMINE:     { label: 'Terminée',    color: 'bg-purple-500/20 text-purple-400' },
+  TERMINEE:    { label: 'Terminée',    color: 'bg-purple-500/20 text-purple-400' },
   ARCHIVE:     { label: 'Archivée',    color: 'bg-gray-500/20 text-gray-500' },
 };
 
 const EMPTY_FORM = {
-  nom: '', slug: '', description: '', reglement: '',
+  nom: '', slug: '', description: '', reglement: '', statut: 'BROUILLON',
   nb_participants_par_equipe: 4, solo_autorise: false,
   date_course: '', duree_minutes: 360, nb_equipes_max: 20, prix_equipe: 0,
   devoilement_depart: '', devoilement_checkpoints: '',
@@ -36,6 +37,7 @@ function editionToForm(ed: Edition) {
     slug: ed.slug ?? '',
     description: ed.description ?? '',
     reglement: ed.reglement ?? '',
+    statut: ed.statut ?? 'BROUILLON',
     nb_participants_par_equipe: ed.nb_participants_par_equipe ?? 4,
     solo_autorise: ed.solo_autorise ?? false,
     date_course: toDatetimeLocal(ed.date_course),
@@ -73,7 +75,7 @@ export default function EditionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   }
 
@@ -125,6 +127,7 @@ export default function EditionsPage() {
     try {
       const payload = {
         ...form,
+        statut: editingId ? form.statut : undefined,
         slug: form.slug.trim() || undefined,
         reglement: form.reglement.trim() || undefined,
         duree_minutes: Number(form.duree_minutes),
@@ -307,6 +310,15 @@ export default function EditionsPage() {
               <Field label="Slug URL (ex : udt-2026)">
                 <input name="slug" value={form.slug} onChange={handleChange} className={input} placeholder="udt-2026" pattern="[a-z0-9-]+" />
               </Field>
+              {editingId && (
+                <Field label="Statut">
+                  <select name="statut" value={form.statut} onChange={handleChange} className={input}>
+                    {Object.entries(STATUT).map(([key, { label }]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Description">
                 <textarea name="description" value={form.description} onChange={handleChange} rows={2} className={input} placeholder="Description de l'édition…" />
               </Field>

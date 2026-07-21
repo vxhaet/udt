@@ -17,7 +17,7 @@ import { errorHandler } from './middleware/error';
 
 export const app: Express = express();
 
-const corsOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002'].filter(Boolean) as string[];
+const corsOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002', 'https://soothing-cat-production-7144.up.railway.app'].filter(Boolean) as string[];
 console.log('[CORS] Origines autorisées:', corsOrigins);
 
 app.use(helmet());

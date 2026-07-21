@@ -14,7 +14,7 @@ RUN pnpm --filter @udt/db exec prisma generate
 RUN pnpm --filter @udt/db add -D @types/node
 RUN pnpm --filter @udt/db exec tsc
 RUN pnpm --filter @udt/shared exec tsc
-RUN pnpm --filter @udt/api exec tsc --skipLibCheck --noEmit false
+RUN pnpm --filter @udt/api exec tsc --project tsconfig.build.json
 ENV NODE_ENV=production
 EXPOSE 3001
 CMD ["node", "packages/api/dist/index.js"]

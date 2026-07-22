@@ -37,6 +37,7 @@ enum StatutEquipe {
   EN_COURSE
   ARRIVEE
   DISQUALIFIEE
+  ANNULEE
 }
 
 enum RoleParticipant {

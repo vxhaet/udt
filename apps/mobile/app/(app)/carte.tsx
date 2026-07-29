@@ -176,13 +176,13 @@ export default function CarteScreen() {
   const injectCheckpoints = useCallback((data: CarteData) => {
     if (!mapReadyRef.current) return;
     const allCps = [
-      ...(data.depart ? [{
+      ...(data.depart?.lat != null && data.depart?.lng != null ? [{
         id: '__depart__', type: 'DEPART' as const,
         latitude: data.depart.lat, longitude: data.depart.lng,
         nom: 'Départ', rayon_validation_metres: 0, actif: true,
         type_validation: 'AUTO' as const,
       }] : []),
-      ...(data.arrivee ? [{
+      ...(data.arrivee?.lat != null && data.arrivee?.lng != null ? [{
         id: '__arrivee__', type: 'ARRIVEE' as const,
         latitude: data.arrivee.lat, longitude: data.arrivee.lng,
         nom: 'Arrivée', rayon_validation_metres: 0, actif: true,

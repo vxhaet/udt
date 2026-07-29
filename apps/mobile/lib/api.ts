@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -8,15 +9,26 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 export const TOKEN_KEY = 'udt_token';
 
+const isWeb = Platform.OS === 'web';
+
 export async function getStoredToken(): Promise<string | null> {
+  if (isWeb) return localStorage.getItem(TOKEN_KEY);
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
 export async function storeToken(token: string): Promise<void> {
+  if (isWeb) {
+    localStorage.setItem(TOKEN_KEY, token);
+    return;
+  }
   return SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
 export async function removeToken(): Promise<void> {
+  if (isWeb) {
+    localStorage.removeItem(TOKEN_KEY);
+    return;
+  }
   return SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 

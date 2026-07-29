@@ -1,6 +1,6 @@
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  RefreshControl, ScrollView, TouchableOpacity,
+  RefreshControl, ScrollView, TouchableOpacity, Modal, Pressable,
 } from 'react-native';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiFetch, type ClassementEntry } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
+
+// ── Types détail équipe ──────────────────────────────────────────────────────
+
+interface EquipeValidation {
+  id: string;
+  checkpointNom: string;
+  checkpointPoints: number;
+  pointsAccordes: number;
+  validatedAt: string;
+}
+
+interface EquipeDetail {
+  equipeId: string;
+  nom: string;
+  scoreTotal: number;
+  validations: EquipeValidation[];
+}
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -24,7 +41,7 @@ const STATUT_LABEL: Record<string, { label: string; color: string }> = {
 
 // ── Podium ────────────────────────────────────────────────────────────────────
 
-function Podium({ top3, myEquipeId }: { top3: ClassementEntry[]; myEquipeId: string | null }) {
+function Podium({ top3, myEquipeId, onPress }: { top3: ClassementEntry[]; myEquipeId: string | null; onPress: (id: string) => void }) {
   // Ordre d'affichage : 2ème à gauche, 1er au centre, 3ème à droite
   const order = [top3[1], top3[0], top3[2]].filter(Boolean);
 
@@ -35,7 +52,7 @@ function Podium({ top3, myEquipeId }: { top3: ClassementEntry[]; myEquipeId: str
         const isMe = entry.equipeId === myEquipeId;
         const isFirst = entry.rang === 1;
         return (
-          <View key={entry.equipeId} style={[podiumStyles.card, { backgroundColor: MEDAL_BG[idx] }, isFirst && podiumStyles.cardFirst]}>
+          <TouchableOpacity key={entry.equipeId} activeOpacity={0.7} onPress={() => onPress(entry.equipeId)} style={[podiumStyles.card, { backgroundColor: MEDAL_BG[idx] }, isFirst && podiumStyles.cardFirst]}>
             <Text style={podiumStyles.medal}>{MEDALS[idx]}</Text>
             <Text style={[podiumStyles.rank, { color: MEDAL_COLORS[idx] }]}>{entry.rang}</Text>
             <Text style={[podiumStyles.name, isMe && podiumStyles.nameMe]} numberOfLines={2}>
@@ -46,7 +63,7 @@ function Podium({ top3, myEquipeId }: { top3: ClassementEntry[]; myEquipeId: str
             {entry.format_course && (
               <Text style={podiumStyles.format} numberOfLines={1}>{entry.format_course.nom}</Text>
             )}
-          </View>
+          </TouchableOpacity>
         );
       })}
     </View>
@@ -64,6 +81,30 @@ export default function ClassementScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [gelActif, setGelActif] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
+
+  // Détail équipe
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailData, setDetailData] = useState<EquipeDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openDetail = useCallback(async (eqId: string) => {
+    setDetailVisible(true);
+    setDetailLoading(true);
+    try {
+      const data = await apiFetch<EquipeDetail>(`/equipes/${eqId}/validations`);
+      setDetailData(data);
+    } catch (err) {
+      console.error('[Classement] détail erreur', err);
+      setDetailData(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setDetailVisible(false);
+    setDetailData(null);
+  }, []);
 
   const fetchClassement = useCallback(async () => {
     if (!editionId) return;
@@ -123,7 +164,7 @@ export default function ClassementScreen() {
     const statut = STATUT_LABEL[item.statut] ?? { label: item.statut, color: '#6b7280' };
 
     return (
-      <View style={[styles.row, isMe && styles.rowMe]}>
+      <TouchableOpacity activeOpacity={0.7} onPress={() => openDetail(item.equipeId)} style={[styles.row, isMe && styles.rowMe]}>
         {/* Rang */}
         <Text style={styles.rank}>{item.rang}</Text>
 
@@ -163,7 +204,7 @@ export default function ClassementScreen() {
           <Text style={styles.score}>{item.scoreTotal}</Text>
           <Text style={[styles.statusText, { color: statut.color }]}>{statut.label}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -255,7 +296,7 @@ export default function ClassementScreen() {
             <>
               {/* Podium top 3 */}
               {top3.length > 0 && (
-                <Podium top3={top3} myEquipeId={equipeId} />
+                <Podium top3={top3} myEquipeId={equipeId} onPress={openDetail} />
               )}
 
               {/* Séparateur + en-tête tableau */}
@@ -270,9 +311,97 @@ export default function ClassementScreen() {
           }
         />
       )}
+      {/* Modal détail équipe */}
+      <Modal visible={detailVisible} transparent animationType="slide" onRequestClose={closeDetail}>
+        <Pressable style={detailStyles.backdrop} onPress={closeDetail}>
+          <Pressable style={detailStyles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={detailStyles.handle} />
+            {detailLoading ? (
+              <View style={detailStyles.centered}>
+                <ActivityIndicator color="#3b82f6" size="large" />
+              </View>
+            ) : detailData ? (
+              <>
+                <Text style={detailStyles.title}>{detailData.nom}</Text>
+                <ScrollView style={detailStyles.list} showsVerticalScrollIndicator={false}>
+                  {detailData.validations.map((v, i) => (
+                    <View key={v.id} style={detailStyles.row}>
+                      <Text style={detailStyles.index}>{i + 1}</Text>
+                      <View style={detailStyles.cpCol}>
+                        <Text style={detailStyles.cpName} numberOfLines={1}>{v.checkpointNom}</Text>
+                        <Text style={detailStyles.cpTime}>
+                          {new Date(v.validatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+                      <Text style={detailStyles.cpPoints}>+{v.pointsAccordes}</Text>
+                    </View>
+                  ))}
+                  {detailData.validations.length === 0 && (
+                    <Text style={detailStyles.empty}>Aucun checkpoint validé</Text>
+                  )}
+                </ScrollView>
+                <View style={detailStyles.totalRow}>
+                  <Text style={detailStyles.totalLabel}>Total</Text>
+                  <Text style={detailStyles.totalValue}>{detailData.scoreTotal} pts</Text>
+                </View>
+              </>
+            ) : (
+              <Text style={detailStyles.empty}>Erreur de chargement</Text>
+            )}
+            <TouchableOpacity style={detailStyles.closeBtn} onPress={closeDetail}>
+              <Text style={detailStyles.closeBtnText}>Fermer</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+// ── Styles détail modal ──────────────────────────────────────────────────────
+
+const detailStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#0f172a',
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    paddingHorizontal: 16, paddingBottom: 32,
+    maxHeight: '75%',
+  },
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: '#334155', alignSelf: 'center', marginTop: 10, marginBottom: 12,
+  },
+  centered: { paddingVertical: 40, alignItems: 'center' },
+  title: { color: 'white', fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  list: { flexGrow: 0 },
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: '#1e293b',
+  },
+  index: { width: 28, color: '#475569', fontSize: 13, fontWeight: '600' },
+  cpCol: { flex: 1, paddingRight: 8 },
+  cpName: { color: '#e2e8f0', fontSize: 14, fontWeight: '500' },
+  cpTime: { color: '#64748b', fontSize: 12, marginTop: 1 },
+  cpPoints: { color: '#fbbf24', fontSize: 15, fontWeight: '700', width: 50, textAlign: 'right' },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingTop: 12, marginTop: 4,
+    borderTopWidth: 1, borderTopColor: '#334155',
+  },
+  totalLabel: { color: '#94a3b8', fontSize: 14, fontWeight: '600' },
+  totalValue: { color: '#fbbf24', fontSize: 20, fontWeight: '900' },
+  empty: { color: '#475569', fontSize: 14, textAlign: 'center', paddingVertical: 24 },
+  closeBtn: {
+    marginTop: 16, backgroundColor: '#1e293b',
+    borderRadius: 12, paddingVertical: 12, alignItems: 'center',
+  },
+  closeBtnText: { color: 'white', fontWeight: '600', fontSize: 15 },
+});
 
 // ── Styles podium ─────────────────────────────────────────────────────────────
 

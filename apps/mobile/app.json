@@ -20,11 +20,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#030712"
-      },
+"android": {
       "package": "com.udt.app",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",

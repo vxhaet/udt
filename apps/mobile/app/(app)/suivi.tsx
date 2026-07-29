@@ -8,13 +8,16 @@ import { apiFetch, type CarteData, type ClassementEntry } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
 
-// ── Couleurs par équipe ────────────────────────────────────────────────────────
+// ── Couleur déterministe par équipe ───────────────────────────────────────────
 
-const TEAM_COLORS = [
-  '#ef4444', '#3b82f6', '#22c55e', '#a855f7',
-  '#f97316', '#06b6d4', '#ec4899', '#eab308',
-  '#14b8a6', '#f43f5e', '#84cc16', '#6366f1',
-];
+function teamColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+  }
+  const hue = ((hash % 360) + 360) % 360;
+  return `hsl(${hue}, 70%, 55%)`;
+}
 
 // ── HTML Leaflet ───────────────────────────────────────────────────────────────
 
@@ -37,6 +40,7 @@ var map=L.map('map',{zoomControl:false,attributionControl:false});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 map.setView([46.5,2.5],6);
 L.control.zoom({position:'bottomright'}).addTo(map);
+window.ReactNativeWebView && window.ReactNativeWebView.postMessage('MAP_READY');
 
 var CPCOLORS={DEPART:'#22c55e',ARRIVEE:'#ef4444',EPHEMERE_QG:'#f97316',NORMAL:'#3b82f6'};
 var _cpMarkers=[],_teamLines=[],_teamMarkers=[];
@@ -57,7 +61,9 @@ function mkTeamIcon(color,initials){
   });
 }
 
+
 window.updateSuivi=function(data){
+  window.ReactNativeWebView && window.ReactNativeWebView.postMessage('SUIVI teams='+(data.teams?data.teams.length:'undef')+' cps='+(data.checkpoints?data.checkpoints.length:'undef'));
   _cpMarkers.forEach(function(m){m.remove();});
   _teamLines.forEach(function(l){l.remove();});
   _teamMarkers.forEach(function(m){m.remove();});
@@ -80,7 +86,7 @@ window.updateSuivi=function(data){
 
   (data.teams||[]).forEach(function(team){
     if(!team.path||team.path.length===0)return;
-    var line=L.polyline(team.path,{color:team.color,weight:3.5,opacity:0.85}).addTo(map);
+    var line=L.polyline(team.path,{color:team.color,weight:3.5,opacity:0.85,dashArray:'8 6'}).addTo(map);
     _teamLines.push(line);
     var last=team.path[team.path.length-1];
     var initials=(team.nom||'??').replace(/[^A-Za-z\u00C0-\u024F ]/g,'').trim().split(' ').map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase()||'??';
@@ -160,38 +166,44 @@ export default function SuiviScreen() {
       byEquipe.get(v.equipe_id)!.push(v);
     }
 
+    // Point de départ comme premier point du tracé (seulement si lat/lng définis)
+    const departPoint: [number, number] | null =
+      carteData.depart?.lat != null && carteData.depart?.lng != null
+        ? [carteData.depart.lat, carteData.depart.lng]
+        : null;
+
     const teams: SuiviTeam[] = [];
-    let colorIdx = 0;
     for (const [equipeId, validations] of byEquipe) {
       const sorted = [...validations].sort(
         (a, b) => new Date(a.validated_at).getTime() - new Date(b.validated_at).getTime(),
       );
       const path: [number, number][] = [];
+      if (departPoint) path.push(departPoint);
       for (const v of sorted) {
         const coords = cpCoords.get(v.checkpoint_id);
         if (coords) path.push(coords);
       }
-      if (path.length > 0) {
+      // Au moins 1 validation (le départ seul ne compte pas)
+      if (path.length > (departPoint ? 1 : 0)) {
         teams.push({
           id: equipeId,
-          nom: equipeNames.get(equipeId) ?? `Équipe ${colorIdx + 1}`,
-          color: TEAM_COLORS[colorIdx % TEAM_COLORS.length],
+          nom: equipeNames.get(equipeId) ?? equipeId,
+          color: teamColor(equipeId),
           path,
-          nbCps: path.length,
+          nbCps: path.length - (departPoint ? 1 : 0),
         });
-        colorIdx++;
       }
     }
 
     // Construire les checkpoints à afficher (inclure départ/arrivée)
     const allCheckpoints = [
-      ...(carteData.depart ? [{
+      ...(carteData.depart?.lat != null && carteData.depart?.lng != null ? [{
         id: '__depart__', type: 'DEPART' as const,
         latitude: carteData.depart.lat, longitude: carteData.depart.lng,
         nom: 'Départ', rayon_validation_metres: 0, actif: true,
         type_validation: 'AUTO' as const, ordre_affichage: undefined, points: undefined,
       }] : []),
-      ...(carteData.arrivee ? [{
+      ...(carteData.arrivee?.lat != null && carteData.arrivee?.lng != null ? [{
         id: '__arrivee__', type: 'ARRIVEE' as const,
         latitude: carteData.arrivee.lat, longitude: carteData.arrivee.lng,
         nom: 'Arrivée', rayon_validation_metres: 0, actif: true,
@@ -273,7 +285,11 @@ export default function SuiviScreen() {
             originWhitelist={['*']}
             javaScriptEnabled
             domStorageEnabled
-            onLoadEnd={handleMapReady}
+            onMessage={(e) => {
+              const msg = e.nativeEvent.data;
+              console.log('[Suivi][WebView]', msg);
+              if (msg === 'MAP_READY') handleMapReady();
+            }}
             onError={(e) => console.error('[Suivi] WebView error', e.nativeEvent)}
             scrollEnabled={false}
           />

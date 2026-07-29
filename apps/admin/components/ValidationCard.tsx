@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { Check, X, MapPin, Clock } from 'lucide-react';
 import type { PendingValidation } from '@/lib/api';
 
@@ -77,11 +76,10 @@ export default function ValidationCard({ validation, onApprove, onReject }: Prop
             onClick={() => setPhotoOpen(true)}
             className="w-full aspect-video relative rounded-lg overflow-hidden bg-gray-800 hover:opacity-90 transition-opacity"
           >
-            <Image
+            <img
               src={validation.photo_url}
               alt="Photo de validation"
-              fill
-              className="object-cover"
+              className="absolute inset-0 w-full h-full object-cover"
             />
           </button>
         )}
@@ -171,11 +169,10 @@ export default function ValidationCard({ validation, onApprove, onReject }: Prop
           onClick={() => setPhotoOpen(false)}
         >
           <div className="relative max-w-3xl w-full max-h-[90vh] aspect-video">
-            <Image
+            <img
               src={validation.photo_url}
               alt="Photo de validation"
-              fill
-              className="object-contain"
+              className="absolute inset-0 w-full h-full object-contain"
             />
           </div>
         </div>

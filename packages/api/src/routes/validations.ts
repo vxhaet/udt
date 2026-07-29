@@ -47,12 +47,17 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
       );
     }
 
-    // Vérifier doublon (déjà approuvé)
+    // Vérifier doublon (déjà approuvé OU en attente de validation)
     const alreadyValidated = await prisma.validation.findFirst({
-      where: { equipe_id: equipeId, checkpoint_id: body.checkpointId, statut: 'APPROUVE' },
+      where: {
+        equipe_id: equipeId,
+        checkpoint_id: body.checkpointId,
+        statut: { in: ['APPROUVE', 'EN_ATTENTE'] },
+      },
     });
-    if (alreadyValidated) throw new AppError(409, 'Ce checkpoint a déjà été validé');
-
+    if (alreadyValidated) {
+      throw new AppError(409, 'Ce checkpoint a déjà été validé ou est en attente de validation');
+    }
     // Vérifier le rayon GPS
     const inRadius = validateCheckpointPosition(
       body.latitude,
@@ -129,6 +134,23 @@ validationsRouter.patch('/:id', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG')
     });
     if (!existing) throw new AppError(404, 'Validation introuvable');
     if (existing.statut !== 'EN_ATTENTE') throw new AppError(400, 'Cette validation a déjà été traitée');
+
+// Empêcher le double comptage : si le checkpoint est déjà approuvé
+    // pour cette équipe via une AUTRE validation, refuser l'approbation.
+    if (body.statut === 'APPROUVE') {
+      const dejaApprouve = await prisma.validation.findFirst({
+        where: {
+          equipe_id: existing.equipe_id,
+          checkpoint_id: existing.checkpoint_id,
+          statut: 'APPROUVE',
+          id: { not: existing.id },
+        },
+      });
+      if (dejaApprouve) {
+        throw new AppError(409, 'Ce checkpoint a déjà été validé pour cette équipe');
+      }
+    }
+
 
     const points_accordes =
       body.statut === 'APPROUVE'

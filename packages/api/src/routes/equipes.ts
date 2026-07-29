@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '@udt/db';
 import { CreateEquipeSchema, JoinEquipeSchema } from '@udt/shared';
 import type { ParticipantTokenPayload } from '@udt/shared';
-import { requireParticipant, requireUser } from '../middleware/auth';
+import { requireParticipant, requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 import Stripe from 'stripe';
 import { sendConfirmationEmail, sendAdminNotification } from '../services/email';
@@ -162,6 +162,43 @@ equipesRouter.get('/:id', requireParticipant(), async (req, res, next) => {
     if (!equipe) throw new AppError(404, 'Équipe introuvable');
 
     res.json(equipe);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /equipes/:id/validations — Détail des checkpoints validés (pour le classement)
+equipesRouter.get('/:id/validations', optionalAuth(), async (req, res, next) => {
+  try {
+    const equipe = await prisma.equipe.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, nom: true, score_total: true },
+    });
+    if (!equipe) throw new AppError(404, 'Équipe introuvable');
+
+    const validations = await prisma.validation.findMany({
+      where: { equipe_id: req.params.id, statut: 'APPROUVE' },
+      select: {
+        id: true,
+        points_accordes: true,
+        validated_at: true,
+        checkpoint: { select: { nom: true, points: true } },
+      },
+      orderBy: { validated_at: 'asc' },
+    });
+
+    res.json({
+      equipeId: equipe.id,
+      nom: equipe.nom,
+      scoreTotal: equipe.score_total,
+      validations: validations.map((v) => ({
+        id: v.id,
+        checkpointNom: v.checkpoint.nom,
+        checkpointPoints: v.checkpoint.points,
+        pointsAccordes: v.points_accordes,
+        validatedAt: v.validated_at.toISOString(),
+      })),
+    });
   } catch (err) {
     next(err);
   }

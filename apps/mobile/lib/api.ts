@@ -112,6 +112,8 @@ export interface Checkpoint {
   type?: 'NORMAL' | 'DEPART' | 'ARRIVEE' | 'EPHEMERE_QG';
   actif: boolean;
   ordre_affichage?: number | null;
+  tous_formats?: boolean;
+  formats?: { id: string }[];
 }
 
 export interface CarteData {

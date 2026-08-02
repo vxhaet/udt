@@ -222,6 +222,8 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
             type_validation: true,
             type: true,
             ordre_affichage: true,
+            tous_formats: true,
+            formats: { select: { id: true } },
           },
           orderBy: { ordre_affichage: 'asc' },
         })

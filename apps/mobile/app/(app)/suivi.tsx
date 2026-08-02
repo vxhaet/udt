@@ -156,8 +156,29 @@ export default function SuiviScreen() {
       cpCoords.set(cp.id, [cp.latitude, cp.longitude]);
     }
 
-    // Map equipeId → nom
-    const equipeNames = new Map(classement.map((e) => [e.equipeId, e.nom]));
+    // Map equipeId → { nom, formatId }
+    const equipeInfo = new Map(classement.map((e) => [
+      e.equipeId,
+      { nom: e.nom, formatId: e.format_course?.id ?? null, formatNom: e.format_course?.nom ?? null },
+    ]));
+
+    // Résoudre le checkpoint DEPART spécifique au format (pas de fallback)
+    const departByFormat = new Map<string, [number, number]>();
+    for (const cp of carteData.checkpoints) {
+      if (cp.type !== 'DEPART') continue;
+      for (const f of cp.formats ?? []) {
+        departByFormat.set(f.id, [cp.latitude, cp.longitude]);
+      }
+    }
+
+    function getDepartForEquipe(equipeId: string): [number, number] | null {
+      const info = equipeInfo.get(equipeId);
+      if (!info?.formatId) return null;
+      const specific = departByFormat.get(info.formatId);
+      if (specific) return specific;
+      console.error(`[Suivi] ERREUR CONFIG: format "${info.formatNom}" (${info.formatId}) sans checkpoint DEPART`);
+      return null;
+    }
 
     // Grouper validations par équipe, triées par date
     const byEquipe = new Map<string, typeof carteData.validations>();
@@ -166,51 +187,32 @@ export default function SuiviScreen() {
       byEquipe.get(v.equipe_id)!.push(v);
     }
 
-    // Point de départ comme premier point du tracé (seulement si lat/lng définis)
-    const departPoint: [number, number] | null =
-      carteData.depart?.lat != null && carteData.depart?.lng != null
-        ? [carteData.depart.lat, carteData.depart.lng]
-        : null;
-
     const teams: SuiviTeam[] = [];
     for (const [equipeId, validations] of byEquipe) {
       const sorted = [...validations].sort(
         (a, b) => new Date(a.validated_at).getTime() - new Date(b.validated_at).getTime(),
       );
+      const depart = getDepartForEquipe(equipeId);
       const path: [number, number][] = [];
-      if (departPoint) path.push(departPoint);
+      if (depart) path.push(depart);
       for (const v of sorted) {
         const coords = cpCoords.get(v.checkpoint_id);
         if (coords) path.push(coords);
       }
       // Au moins 1 validation (le départ seul ne compte pas)
-      if (path.length > (departPoint ? 1 : 0)) {
+      if (path.length > (depart ? 1 : 0)) {
         teams.push({
           id: equipeId,
-          nom: equipeNames.get(equipeId) ?? equipeId,
+          nom: equipeInfo.get(equipeId)?.nom ?? equipeId,
           color: teamColor(equipeId),
           path,
-          nbCps: path.length - (departPoint ? 1 : 0),
+          nbCps: path.length - (depart ? 1 : 0),
         });
       }
     }
 
-    // Construire les checkpoints à afficher (inclure départ/arrivée)
-    const allCheckpoints = [
-      ...(carteData.depart?.lat != null && carteData.depart?.lng != null ? [{
-        id: '__depart__', type: 'DEPART' as const,
-        latitude: carteData.depart.lat, longitude: carteData.depart.lng,
-        nom: 'Départ', rayon_validation_metres: 0, actif: true,
-        type_validation: 'AUTO' as const, ordre_affichage: undefined, points: undefined,
-      }] : []),
-      ...(carteData.arrivee?.lat != null && carteData.arrivee?.lng != null ? [{
-        id: '__arrivee__', type: 'ARRIVEE' as const,
-        latitude: carteData.arrivee.lat, longitude: carteData.arrivee.lng,
-        nom: 'Arrivée', rayon_validation_metres: 0, actif: true,
-        type_validation: 'AUTO' as const, ordre_affichage: undefined, points: undefined,
-      }] : []),
-      ...carteData.checkpoints,
-    ];
+    // Les checkpoints DEPART/ARRIVEE sont déjà dans carteData.checkpoints
+    const allCheckpoints = carteData.checkpoints;
 
     setGelActif(new Date() >= new Date(edition.gel_classement));
 

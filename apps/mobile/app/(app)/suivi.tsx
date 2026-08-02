@@ -1,9 +1,11 @@
 import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
+  TouchableOpacity, Pressable,
 } from 'react-native';
 import WebView from 'react-native-webview';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { apiFetch, type CarteData, type ClassementEntry } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
@@ -107,6 +109,8 @@ interface SuiviTeam {
   color: string;
   path: [number, number][];
   nbCps: number;
+  formatId: string | null;
+  formatNom: string | null;
 }
 
 interface SuiviData {
@@ -127,12 +131,50 @@ export default function SuiviScreen() {
   const [gelActif, setGelActif] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // ── Filtres ────────────────────────────────────────────────────────────────────
+
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set());
+  const [activeTeamIds, setActiveTeamIds] = useState<Set<string>>(new Set());
+  // Flag : true tant que les filtres n'ont jamais été initialisés depuis des données
+  const filtersInitRef = useRef(false);
+
+  // Formats disponibles déduits des équipes
+  const allFormats = useMemo(() => {
+    if (!suiviData) return [];
+    const seen = new Map<string, string>();
+    for (const t of suiviData.teams) {
+      if (t.formatId && !seen.has(t.formatId)) seen.set(t.formatId, t.formatNom ?? t.formatId);
+    }
+    return Array.from(seen.entries()).map(([id, nom]) => ({ id, nom }));
+  }, [suiviData]);
+
+  // Équipes visibles selon les filtres
+  const visibleTeams = useMemo(() => {
+    if (!suiviData) return [];
+    return suiviData.teams.filter((t) => {
+      if (t.formatId && !activeFormats.has(t.formatId)) return false;
+      if (!t.formatId && activeFormats.size < allFormats.length) return false;
+      return activeTeamIds.has(t.id);
+    });
+  }, [suiviData, activeFormats, activeTeamIds, allFormats.length]);
+
+  // Équipes éligibles au filtre équipe (format coché)
+  const teamChoices = useMemo(() => {
+    if (!suiviData) return [];
+    return suiviData.teams.filter((t) => {
+      if (t.formatId && !activeFormats.has(t.formatId)) return false;
+      if (!t.formatId && activeFormats.size < allFormats.length) return false;
+      return true;
+    });
+  }, [suiviData, activeFormats, allFormats.length]);
+
   // ── Inject dans WebView ──────────────────────────────────────────────────────
 
-  const injectSuivi = useCallback((data: SuiviData) => {
+  const injectSuivi = useCallback((checkpoints: SuiviData['checkpoints'], teams: SuiviTeam[]) => {
     if (!mapReadyRef.current) return;
     webRef.current?.injectJavaScript(
-      `window.updateSuivi(${JSON.stringify(data)}); true;`,
+      `window.updateSuivi(${JSON.stringify({ checkpoints, teams })}); true;`,
     );
   }, []);
 
@@ -201,12 +243,15 @@ export default function SuiviScreen() {
       }
       // Au moins 1 validation (le départ seul ne compte pas)
       if (path.length > (depart ? 1 : 0)) {
+        const info = equipeInfo.get(equipeId);
         teams.push({
           id: equipeId,
-          nom: equipeInfo.get(equipeId)?.nom ?? equipeId,
+          nom: info?.nom ?? equipeId,
           color: teamColor(equipeId),
           path,
           nbCps: path.length - (depart ? 1 : 0),
+          formatId: info?.formatId ?? null,
+          formatNom: info?.formatNom ?? null,
         });
       }
     }
@@ -219,7 +264,27 @@ export default function SuiviScreen() {
     const data: SuiviData = { checkpoints: allCheckpoints as CarteData['checkpoints'], teams };
     suiviDataRef.current = data;
     setSuiviData(data);
-    injectSuivi(data);
+
+    // Initialiser les filtres au premier chargement ; ajouter les nouvelles équipes aux suivants
+    if (!filtersInitRef.current) {
+      filtersInitRef.current = true;
+      const fmtIds = new Set<string>();
+      for (const t of teams) { if (t.formatId) fmtIds.add(t.formatId); }
+      setActiveFormats(fmtIds);
+      setActiveTeamIds(new Set(teams.map((t) => t.id)));
+    } else {
+      // Ajouter les nouvelles équipes/formats sans écraser les choix existants
+      setActiveFormats((prev) => {
+        const next = new Set(prev);
+        for (const t of teams) { if (t.formatId && !next.has(t.formatId)) next.add(t.formatId); }
+        return next.size === prev.size ? prev : next;
+      });
+      setActiveTeamIds((prev) => {
+        const next = new Set(prev);
+        for (const t of teams) { if (!next.has(t.id)) next.add(t.id); }
+        return next.size === prev.size ? prev : next;
+      });
+    }
   }, [editionId, injectSuivi]);
 
   useEffect(() => {
@@ -241,8 +306,36 @@ export default function SuiviScreen() {
 
   const handleMapReady = useCallback(() => {
     mapReadyRef.current = true;
-    if (suiviDataRef.current) injectSuivi(suiviDataRef.current);
+    if (suiviDataRef.current) {
+      injectSuivi(suiviDataRef.current.checkpoints, suiviDataRef.current.teams);
+    }
   }, [injectSuivi]);
+
+  // Réinjecter dans la WebView quand les filtres changent
+  useEffect(() => {
+    if (!suiviData) return;
+    injectSuivi(suiviData.checkpoints, visibleTeams);
+  }, [visibleTeams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Callbacks filtres ──────────────────────────────────────────────────────────
+
+  const toggleFormat = useCallback((formatId: string) => {
+    setActiveFormats((prev) => {
+      const next = new Set(prev);
+      if (next.has(formatId)) next.delete(formatId);
+      else next.add(formatId);
+      return next;
+    });
+  }, []);
+
+  const toggleTeam = useCallback((teamId: string) => {
+    setActiveTeamIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(teamId)) next.delete(teamId);
+      else next.add(teamId);
+      return next;
+    });
+  }, []);
 
   // ── Rendu ────────────────────────────────────────────────────────────────────
 
@@ -254,16 +347,27 @@ export default function SuiviScreen() {
           <Text style={styles.headerTitle}>Suivi live</Text>
           {suiviData && (
             <Text style={styles.headerSub}>
-              {suiviData.teams.length} équipe{suiviData.teams.length > 1 ? 's' : ''} en course
+              {visibleTeams.length}/{suiviData.teams.length} équipe{suiviData.teams.length > 1 ? 's' : ''}
             </Text>
           )}
         </View>
-        {!gelActif && (
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.liveText}>Temps réel</Text>
-          </View>
-        )}
+        <View style={styles.headerRight}>
+          {!gelActif && (
+            <View style={styles.liveIndicator}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          )}
+          {suiviData && suiviData.teams.length > 0 && (
+            <TouchableOpacity
+              style={[styles.filterBtn, filterOpen && styles.filterBtnActive]}
+              onPress={() => setFilterOpen((v) => !v)}
+              hitSlop={6}
+            >
+              <Ionicons name="filter" size={16} color={filterOpen ? 'white' : '#94a3b8'} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Bandeau gel */}
@@ -296,15 +400,65 @@ export default function SuiviScreen() {
             scrollEnabled={false}
           />
 
-          {/* Légende équipes */}
-          {suiviData && suiviData.teams.length > 0 && (
+          {/* Panneau de filtres */}
+          {filterOpen && suiviData && (
+            <View style={styles.filterPanel}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Filtre par format */}
+                {allFormats.length > 0 && (
+                  <>
+                    <Text style={styles.filterSection}>Formats</Text>
+                    {allFormats.map((f) => {
+                      const on = activeFormats.has(f.id);
+                      return (
+                        <Pressable key={f.id} style={styles.filterRow} onPress={() => toggleFormat(f.id)}>
+                          <Ionicons
+                            name={on ? 'checkbox' : 'square-outline'}
+                            size={18}
+                            color={on ? '#3b82f6' : '#475569'}
+                          />
+                          <Text style={[styles.filterLabel, on && styles.filterLabelActive]}>{f.nom}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Filtre par équipe */}
+                {teamChoices.length > 0 && (
+                  <>
+                    <Text style={[styles.filterSection, { marginTop: 10 }]}>Équipes</Text>
+                    {teamChoices.map((t) => {
+                      const on = activeTeamIds.has(t.id);
+                      return (
+                        <Pressable key={t.id} style={styles.filterRow} onPress={() => toggleTeam(t.id)}>
+                          <Ionicons
+                            name={on ? 'checkbox' : 'square-outline'}
+                            size={18}
+                            color={on ? '#3b82f6' : '#475569'}
+                          />
+                          <View style={[styles.filterDot, { backgroundColor: t.color }]} />
+                          <Text style={[styles.filterLabel, on && styles.filterLabelActive]} numberOfLines={1}>
+                            {t.nom}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </>
+                )}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Légende équipes visibles */}
+          {visibleTeams.length > 0 && (
             <View style={styles.legendWrapper}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.legendScroll}
               >
-                {suiviData.teams.map((team) => (
+                {visibleTeams.map((team) => (
                   <View key={team.id} style={styles.legendItem}>
                     <View style={[styles.legendColor, { backgroundColor: team.color }]} />
                     <Text style={styles.legendName} numberOfLines={1}>{team.nom}</Text>
@@ -330,9 +484,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
   headerSub: { color: '#6b7280', fontSize: 13, marginTop: 2 },
-  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
-  liveText: { color: '#22c55e', fontSize: 12 },
+  liveText: { color: '#22c55e', fontSize: 11 },
+  filterBtn: {
+    width: 34, height: 34, borderRadius: 8,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  filterBtnActive: { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
   gelBanner: {
     backgroundColor: 'rgba(251,191,36,0.08)',
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(251,191,36,0.2)',
@@ -343,6 +504,29 @@ const styles = StyleSheet.create({
   loadingText: { color: '#6b7280', fontSize: 14, marginTop: 12 },
   mapWrapper: { flex: 1 },
   map: { flex: 1 },
+
+  // Panneau filtres
+  filterPanel: {
+    position: 'absolute', top: 10, left: 10,
+    backgroundColor: 'rgba(15,23,42,0.94)',
+    borderRadius: 12, borderWidth: 1, borderColor: '#1e293b',
+    paddingHorizontal: 12, paddingVertical: 10,
+    maxHeight: 280, maxWidth: 280,
+  },
+  filterSection: {
+    color: '#64748b', fontSize: 10, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  filterRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 5,
+  },
+  filterDot: { width: 8, height: 8, borderRadius: 4 },
+  filterLabel: { color: '#64748b', fontSize: 13, flex: 1 },
+  filterLabelActive: { color: '#e2e8f0' },
+
+  // Légende
   legendWrapper: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(3,7,18,0.88)',

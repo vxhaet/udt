@@ -162,11 +162,13 @@ export default function SuiviScreen() {
   // Équipes éligibles au filtre équipe (format coché)
   const teamChoices = useMemo(() => {
     if (!suiviData) return [];
-    return suiviData.teams.filter((t) => {
-      if (t.formatId && !activeFormats.has(t.formatId)) return false;
-      if (!t.formatId && activeFormats.size < allFormats.length) return false;
-      return true;
-    });
+    return suiviData.teams
+      .filter((t) => {
+        if (t.formatId && !activeFormats.has(t.formatId)) return false;
+        if (!t.formatId && activeFormats.size < allFormats.length) return false;
+        return true;
+      })
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   }, [suiviData, activeFormats, allFormats.length]);
 
   // ── Inject dans WebView ──────────────────────────────────────────────────────
@@ -438,7 +440,7 @@ export default function SuiviScreen() {
                             color={on ? '#3b82f6' : '#475569'}
                           />
                           <View style={[styles.filterDot, { backgroundColor: t.color }]} />
-                          <Text style={[styles.filterLabel, on && styles.filterLabelActive]} numberOfLines={1}>
+                          <Text style={[styles.filterLabel, on && styles.filterLabelActive]} numberOfLines={2}>
                             {t.nom}
                           </Text>
                         </Pressable>
@@ -507,11 +509,11 @@ const styles = StyleSheet.create({
 
   // Panneau filtres
   filterPanel: {
-    position: 'absolute', top: 10, left: 10,
+    position: 'absolute', top: 10, left: 10, right: 90,
     backgroundColor: 'rgba(15,23,42,0.94)',
     borderRadius: 12, borderWidth: 1, borderColor: '#1e293b',
     paddingHorizontal: 12, paddingVertical: 10,
-    maxHeight: 280, maxWidth: 280,
+    maxHeight: 300,
   },
   filterSection: {
     color: '#64748b', fontSize: 10, fontWeight: '700',

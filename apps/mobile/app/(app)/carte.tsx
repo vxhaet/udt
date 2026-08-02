@@ -156,6 +156,7 @@ export default function CarteScreen() {
   const [carteData, setCarteData] = useState<CarteData | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // État du bottom sheet de validation
   const [selectedCp, setSelectedCp] = useState<Checkpoint | null>(null);
@@ -298,6 +299,12 @@ export default function CarteScreen() {
   const centerOnUser = useCallback(() => {
     webRef.current?.injectJavaScript('window.centerOnUser(); true;');
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData().catch(console.error);
+    setRefreshing(false);
+  }, [fetchData]);
 
   const handleLogout = useCallback(() => {
     Alert.alert('Déconnexion', 'Quitter la session ?', [
@@ -461,9 +468,21 @@ export default function CarteScreen() {
             </Text>
           )}
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} hitSlop={8}>
-          <Ionicons name="log-out-outline" size={22} color="#6b7280" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={handleRefresh}
+            disabled={refreshing}
+            hitSlop={6}
+          >
+            {refreshing
+              ? <ActivityIndicator color="#94a3b8" size={16} />
+              : <Ionicons name="refresh" size={16} color="#94a3b8" />}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} hitSlop={8}>
+            <Ionicons name="log-out-outline" size={22} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -647,6 +666,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
   logoutBtn: { padding: 4 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIconBtn: {
+    width: 34, height: 34, borderRadius: 8,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
+    justifyContent: 'center', alignItems: 'center',
+  },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
   headerSub: { color: '#6b7280', fontSize: 13, marginTop: 2 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },

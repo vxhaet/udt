@@ -231,12 +231,24 @@ export default function ClassementScreen() {
             </View>
           )}
         </View>
-        {gelActif && (
-          <View style={styles.gelBadge}>
-            <Ionicons name="lock-closed" size={12} color="#fbbf24" />
-            <Text style={styles.gelText}>Gelé</Text>
-          </View>
-        )}
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={onRefresh}
+            disabled={refreshing}
+            hitSlop={6}
+          >
+            {refreshing
+              ? <ActivityIndicator color="#94a3b8" size={16} />
+              : <Ionicons name="refresh" size={16} color="#94a3b8" />}
+          </TouchableOpacity>
+          {gelActif && (
+            <View style={styles.gelBadge}>
+              <Ionicons name="lock-closed" size={12} color="#fbbf24" />
+              <Text style={styles.gelText}>Gelé</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Bandeau gel */}
@@ -447,6 +459,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 10,
   },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerIconBtn: {
+    width: 34, height: 34, borderRadius: 8,
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
+    justifyContent: 'center', alignItems: 'center',
+  },
   liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' },
   liveText: { color: '#22c55e', fontSize: 11 },

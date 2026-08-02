@@ -130,6 +130,7 @@ export default function SuiviScreen() {
   const [suiviData, setSuiviData] = useState<SuiviData | null>(null);
   const [gelActif, setGelActif] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ── Filtres ────────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,12 @@ export default function SuiviScreen() {
     });
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData().catch(console.error);
+    setRefreshing(false);
+  }, [fetchData]);
+
   // ── Rendu ────────────────────────────────────────────────────────────────────
 
   return (
@@ -360,9 +367,19 @@ export default function SuiviScreen() {
               <Text style={styles.liveText}>Live</Text>
             </View>
           )}
+          <TouchableOpacity
+            style={styles.headerIconBtn}
+            onPress={handleRefresh}
+            disabled={refreshing}
+            hitSlop={6}
+          >
+            {refreshing
+              ? <ActivityIndicator color="#94a3b8" size={16} />
+              : <Ionicons name="refresh" size={16} color="#94a3b8" />}
+          </TouchableOpacity>
           {suiviData && suiviData.teams.length > 0 && (
             <TouchableOpacity
-              style={[styles.filterBtn, filterOpen && styles.filterBtnActive]}
+              style={[styles.headerIconBtn, filterOpen && styles.filterBtnActive]}
               onPress={() => setFilterOpen((v) => !v)}
               hitSlop={6}
             >
@@ -490,7 +507,7 @@ const styles = StyleSheet.create({
   liveIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#22c55e' },
   liveText: { color: '#22c55e', fontSize: 11 },
-  filterBtn: {
+  headerIconBtn: {
     width: 34, height: 34, borderRadius: 8,
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
     justifyContent: 'center', alignItems: 'center',

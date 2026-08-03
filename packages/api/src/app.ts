@@ -13,6 +13,7 @@ import { itinerairesRouter } from './routes/itineraires';
 import { configRouter } from './routes/config';
 import { formatsRouter } from './routes/formats';
 import { inscriptionsRouter } from './routes/inscriptions';
+import { uploadRouter } from './routes/upload';
 import { errorHandler } from './middleware/error';
 
 export const app: Express = express();
@@ -57,6 +58,7 @@ app.use('/equipes', equipesRouter);
 app.use('/inscriptions', inscriptionsRouter);
 app.use('/validations', validationsRouter);
 app.use('/strava', stravaRouter);
+app.use('/upload', uploadRouter);
 
 // Global error handler — must be last
 app.use(errorHandler);

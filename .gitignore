@@ -36,3 +36,5 @@ coverage/
 
 # Expo
 .expo/
+packages/db/tmp-*.ts
+tmp-*.ts

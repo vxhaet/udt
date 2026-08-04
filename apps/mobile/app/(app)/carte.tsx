@@ -9,7 +9,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { apiFetch, type CarteData, type Checkpoint } from '@/lib/api';
+import { apiFetch, uploadFile, type CarteData, type Checkpoint } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
 
@@ -427,13 +427,18 @@ export default function CarteScreen() {
         pos = { lat: loc.coords.latitude, lng: loc.coords.longitude };
       }
 
+      let photo_url: string | undefined;
+      if (photoUri) {
+        photo_url = await uploadFile(photoUri);
+      }
+
       const result = await apiFetch<ValidationResult>('/validations', {
         method: 'POST',
         body: JSON.stringify({
           checkpointId: selectedCp.id,
           latitude: pos.lat,
           longitude: pos.lng,
-          photo_url: photoUri,
+          photo_url,
         }),
       });
       setValidationResult(result);

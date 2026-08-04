@@ -1,8 +1,14 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
+// R2_ENDPOINT peut contenir le nom du bucket en suffixe (ex: .../udt-photos) — on le retire
+// car le bucket est déjà spécifié via le paramètre Bucket du PutObjectCommand.
+const rawEndpoint = process.env.R2_ENDPOINT!;
+const bucket = process.env.R2_BUCKET ?? 'udt-photos';
+const cleanEndpoint = rawEndpoint.replace(new RegExp(`/${bucket}$`), '');
+
 const s3 = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT!,
+  endpoint: cleanEndpoint,
   credentials: {
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,

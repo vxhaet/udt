@@ -51,9 +51,9 @@ export default function AppLayout() {
       <Tabs.Screen
         name="archives"
         options={{
-          title: 'Archives',
+          title: 'Album',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="archive-outline" size={size} color={color} />
+            <Ionicons name="images-outline" size={size} color={color} />
           ),
         }}
       />

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiFetch, type ClassementEntry } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
+import PhotoViewer, { type PhotoItem } from '@/components/PhotoViewer';
 
 // ── Types détail équipe ──────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ interface EquipeValidation {
   checkpointNom: string;
   checkpointPoints: number;
   pointsAccordes: number;
+  photoUrl: string | null;
   validatedAt: string;
 }
 
@@ -104,6 +106,32 @@ export default function ClassementScreen() {
   const closeDetail = useCallback(() => {
     setDetailVisible(false);
     setDetailData(null);
+  }, []);
+
+  // Photo viewer — fermer le modal détail avant d'ouvrir (évite deux Modal simultanées sur iOS)
+  const [viewerPhotos, setViewerPhotos] = useState<PhotoItem[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerVisible, setViewerVisible] = useState(false);
+
+  const openPhoto = useCallback((validations: EquipeValidation[], tappedId: string) => {
+    const withPhoto = validations.filter((v) => v.photoUrl);
+    const photos: PhotoItem[] = withPhoto.map((v) => ({
+      id: v.id,
+      photoUrl: v.photoUrl!,
+      label: v.checkpointNom,
+    }));
+    const idx = photos.findIndex((p) => p.id === tappedId);
+    setViewerPhotos(photos);
+    setViewerIndex(idx >= 0 ? idx : 0);
+    setDetailVisible(false);
+    // Attendre que le modal détail se ferme avant d'ouvrir le viewer
+    setTimeout(() => setViewerVisible(true), 350);
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setViewerVisible(false);
+    // Rouvrir le modal détail
+    setTimeout(() => setDetailVisible(true), 350);
   }, []);
 
   const fetchClassement = useCallback(async () => {
@@ -336,18 +364,26 @@ export default function ClassementScreen() {
               <>
                 <Text style={detailStyles.title}>{detailData.nom}</Text>
                 <ScrollView style={detailStyles.list} showsVerticalScrollIndicator={false}>
-                  {detailData.validations.map((v, i) => (
-                    <View key={v.id} style={detailStyles.row}>
-                      <Text style={detailStyles.index}>{i + 1}</Text>
-                      <View style={detailStyles.cpCol}>
-                        <Text style={detailStyles.cpName} numberOfLines={1}>{v.checkpointNom}</Text>
-                        <Text style={detailStyles.cpTime}>
-                          {new Date(v.validatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                      </View>
-                      <Text style={detailStyles.cpPoints}>+{v.pointsAccordes}</Text>
-                    </View>
-                  ))}
+                  {detailData.validations.map((v, i) => {
+                    const Row = v.photoUrl ? TouchableOpacity : View;
+                    return (
+                      <Row
+                        key={v.id}
+                        style={detailStyles.row}
+                        {...(v.photoUrl ? { activeOpacity: 0.7, onPress: () => openPhoto(detailData.validations, v.id) } : {})}
+                      >
+                        <Text style={detailStyles.index}>{i + 1}</Text>
+                        <View style={detailStyles.cpCol}>
+                          <Text style={detailStyles.cpName} numberOfLines={1}>{v.checkpointNom}</Text>
+                          <Text style={detailStyles.cpTime}>
+                            {new Date(v.validatedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </Text>
+                        </View>
+                        {v.photoUrl && <Ionicons name="camera-outline" size={14} color="#475569" style={{ marginRight: 4 }} />}
+                        <Text style={detailStyles.cpPoints}>+{v.pointsAccordes}</Text>
+                      </Row>
+                    );
+                  })}
                   {detailData.validations.length === 0 && (
                     <Text style={detailStyles.empty}>Aucun checkpoint validé</Text>
                   )}
@@ -366,6 +402,14 @@ export default function ClassementScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Photo viewer */}
+      <PhotoViewer
+        photos={viewerPhotos}
+        initialIndex={viewerIndex}
+        visible={viewerVisible}
+        onClose={closeViewer}
+      />
     </SafeAreaView>
   );
 }

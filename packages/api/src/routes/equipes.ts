@@ -182,6 +182,7 @@ equipesRouter.get('/:id/validations', optionalAuth(), async (req, res, next) => 
         id: true,
         points_accordes: true,
         validated_at: true,
+        photo_url: true,
         checkpoint: { select: { nom: true, points: true } },
       },
       orderBy: { validated_at: 'asc' },
@@ -196,6 +197,7 @@ equipesRouter.get('/:id/validations', optionalAuth(), async (req, res, next) => 
         checkpointNom: v.checkpoint.nom,
         checkpointPoints: v.checkpoint.points,
         pointsAccordes: v.points_accordes,
+        photoUrl: v.photo_url,
         validatedAt: v.validated_at.toISOString(),
       })),
     });

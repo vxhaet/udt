@@ -272,6 +272,40 @@ editionsRouter.post('/:id/archive', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), 
   }
 });
 
+// GET /editions/:id/album — Photos des validations approuvées
+editionsRouter.get('/:id/album', optionalAuth(), async (req, res, next) => {
+  try {
+    const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
+    if (!edition) throw new AppError(404, 'Édition introuvable');
+
+    const validations = await prisma.validation.findMany({
+      where: {
+        checkpoint: { edition_id: req.params.id },
+        statut: 'APPROUVE',
+        photo_url: { not: null },
+      },
+      select: {
+        id: true,
+        photo_url: true,
+        validated_at: true,
+        checkpoint: { select: { nom: true } },
+        equipe: { select: { nom: true } },
+      },
+      orderBy: { validated_at: 'asc' },
+    });
+
+    res.json(validations.map((v) => ({
+      id: v.id,
+      photoUrl: v.photo_url,
+      checkpointNom: v.checkpoint.nom,
+      equipeNom: v.equipe.nom,
+      validatedAt: v.validated_at.toISOString(),
+    })));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /editions/:id/archive-data — Données complètes pour la page d'archive (public)
 editionsRouter.get('/:id/archive-data', async (req, res, next) => {
   try {

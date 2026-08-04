@@ -1,32 +1,41 @@
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  View, Text, FlatList, Image, TouchableOpacity, StyleSheet,
+  ActivityIndicator, RefreshControl, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'expo-router';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import PhotoViewer, { type PhotoItem } from '@/components/PhotoViewer';
 
-interface ArchivedEdition {
+const SCREEN_W = Dimensions.get('window').width;
+const COL = 2;
+const GAP = 8;
+const THUMB_W = (SCREEN_W - 24 - GAP) / COL;
+
+interface AlbumEntry {
   id: string;
-  nom: string;
-  description?: string | null;
-  date_course: string;
-  duree_minutes: number;
-  _count: { equipes: number };
+  photoUrl: string;
+  checkpointNom: string;
+  equipeNom: string;
+  validatedAt: string;
 }
 
-export default function ArchivesScreen() {
-  const router = useRouter();
-  const [editions, setEditions] = useState<ArchivedEdition[]>([]);
+export default function AlbumScreen() {
+  const { editionId } = useAuth();
+  const [photos, setPhotos] = useState<AlbumEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
   const load = useCallback(async () => {
-    const data = await apiFetch<ArchivedEdition[]>('/editions/archived');
-    setEditions(data);
-  }, []);
+    if (!editionId) return;
+    const data = await apiFetch<AlbumEntry[]>(`/editions/${editionId}/album`);
+    setPhotos(data);
+  }, [editionId]);
 
   useEffect(() => {
     load().catch(console.error).finally(() => setLoading(false));
@@ -38,10 +47,22 @@ export default function ArchivesScreen() {
     setRefreshing(false);
   }
 
+  const viewerPhotos: PhotoItem[] = photos.map((p) => ({
+    id: p.id,
+    photoUrl: p.photoUrl,
+    label: p.checkpointNom,
+    sublabel: p.equipeNom,
+  }));
+
+  const openViewer = useCallback((index: number) => {
+    setViewerIndex(index);
+    setViewerVisible(true);
+  }, []);
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.root} edges={['top']}>
-        <View style={styles.centered}>
+      <SafeAreaView style={s.root} edges={['top']}>
+        <View style={s.centered}>
           <ActivityIndicator color="#3b82f6" size="large" />
         </View>
       </SafeAreaView>
@@ -49,92 +70,72 @@ export default function ArchivesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
-        <Ionicons name="archive-outline" size={20} color="#fbbf24" />
-        <Text style={styles.title}>Archives</Text>
+    <SafeAreaView style={s.root} edges={['top']}>
+      <View style={s.header}>
+        <Ionicons name="images-outline" size={20} color="#3b82f6" />
+        <Text style={s.title}>Album</Text>
+        <Text style={s.count}>{photos.length} photo{photos.length > 1 ? 's' : ''}</Text>
       </View>
 
-      {editions.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons name="archive-outline" size={40} color="#1f2937" />
-          <Text style={styles.emptyText}>Aucune édition archivée</Text>
+      {photos.length === 0 ? (
+        <View style={s.empty}>
+          <Ionicons name="images-outline" size={40} color="#1f2937" />
+          <Text style={s.emptyText}>Aucune photo pour le moment</Text>
         </View>
       ) : (
         <FlatList
-          data={editions}
+          data={photos}
+          numColumns={COL}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={s.grid}
+          columnWrapperStyle={s.gridRow}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <TouchableOpacity
-              style={styles.card}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/(app)/archive/${item.id}`)}
+              style={s.thumb}
+              activeOpacity={0.8}
+              onPress={() => openViewer(index)}
             >
-              <View style={styles.cardContent}>
-                <View style={styles.cardLeft}>
-                  <Text style={styles.cardTitle}>{item.nom}</Text>
-                  {item.description ? (
-                    <Text style={styles.cardDesc} numberOfLines={1}>{item.description}</Text>
-                  ) : null}
-                  <View style={styles.cardMeta}>
-                    <Ionicons name="calendar-outline" size={12} color="#64748b" />
-                    <Text style={styles.metaText}>
-                      {new Date(item.date_course).toLocaleDateString('fr-FR', {
-                        day: 'numeric', month: 'long', year: 'numeric',
-                      })}
-                    </Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Text style={styles.metaText}>{item.duree_minutes / 60}h</Text>
-                    <Text style={styles.metaDot}>·</Text>
-                    <Ionicons name="people-outline" size={12} color="#64748b" />
-                    <Text style={styles.metaText}>{item._count.equipes} équipes</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#374151" />
+              <Image source={{ uri: item.photoUrl }} style={s.thumbImg} resizeMode="cover" />
+              <View style={s.thumbCaption}>
+                <Text style={s.thumbCp} numberOfLines={1}>{item.checkpointNom}</Text>
+                <Text style={s.thumbEq} numberOfLines={1}>{item.equipeNom}</Text>
               </View>
             </TouchableOpacity>
           )}
         />
       )}
+
+      <PhotoViewer
+        photos={viewerPhotos}
+        initialIndex={viewerIndex}
+        visible={viewerVisible}
+        onClose={() => setViewerVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030712' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#111827',
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: '#111827',
   },
-  title: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  list: { paddingVertical: 8, paddingHorizontal: 12 },
-  card: {
-    backgroundColor: '#0f172a',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-    marginVertical: 4,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  cardLeft: { flex: 1 },
-  cardTitle: { color: 'white', fontSize: 15, fontWeight: '600' },
-  cardDesc: { color: '#64748b', fontSize: 12, marginTop: 2 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  metaText: { color: '#64748b', fontSize: 11 },
-  metaDot: { color: '#374151', fontSize: 11 },
+  title: { color: 'white', fontSize: 20, fontWeight: 'bold', flex: 1 },
+  count: { color: '#64748b', fontSize: 13 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { color: '#374151', fontSize: 14 },
+  grid: { paddingHorizontal: 12, paddingVertical: 8 },
+  gridRow: { gap: GAP, marginBottom: GAP },
+  thumb: {
+    width: THUMB_W, borderRadius: 10, overflow: 'hidden',
+    backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
+  },
+  thumbImg: { width: '100%', height: THUMB_W, backgroundColor: '#1e293b' },
+  thumbCaption: { paddingHorizontal: 8, paddingVertical: 6 },
+  thumbCp: { color: '#e2e8f0', fontSize: 12, fontWeight: '500' },
+  thumbEq: { color: '#64748b', fontSize: 11, marginTop: 1 },
 });

@@ -67,15 +67,16 @@ export async function evaluateRules(
   const disparitionActif = !config || config.checkpoints_disparaissent_actif;
 
   if (checkpoint?.disparait_apres_passage && disparitionActif) {
-    await prisma.checkpoint.update({
-      where: { id: checkpointId },
-      data: { actif: false },
-    });
+    // Skip DB update if already claimed atomically (validations.ts transaction)
+    if (checkpoint.actif) {
+      await prisma.checkpoint.update({
+        where: { id: checkpointId },
+        data: { actif: false },
+      });
+    }
 
-    // Garder la trace en Redis pour les accès rapides
+    // Always update Redis + notify, even if already claimed
     await redis.sAdd(keys.editionTakenCheckpoints(editionId), checkpointId);
-
-    // Notifier tous les clients que ce checkpoint est maintenant pris
     emitToAll(editionId, 'checkpoint:taken', { checkpointId, takenByEquipeId: equipeId });
   }
 }

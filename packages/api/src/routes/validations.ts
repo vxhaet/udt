@@ -71,20 +71,33 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
     }
 
     const isAuto = checkpoint.type_validation === 'AUTO';
-    const statut = isAuto ? 'APPROUVE' : 'EN_ATTENTE';
+    const statut = isAuto ? 'APPROUVE' as const : 'EN_ATTENTE' as const;
     const points_accordes = isAuto ? checkpoint.points : 0;
 
-    const validation = await prisma.validation.create({
-      data: {
-        equipe_id: equipeId,
-        checkpoint_id: body.checkpointId,
-        latitude: body.latitude,
-        longitude: body.longitude,
-        photo_url: body.photo_url,
-        statut,
-        points_accordes,
-      },
-    });
+    const validationData = {
+      equipe_id: equipeId,
+      checkpoint_id: body.checkpointId,
+      latitude: body.latitude,
+      longitude: body.longitude,
+      photo_url: body.photo_url,
+      statut,
+      points_accordes,
+    };
+
+    // Atomic claim + create in a single transaction for disappearing checkpoints
+    // If the create fails after a successful claim, the claim is rolled back
+    const validation = checkpoint.disparait_apres_passage && isAuto
+      ? await prisma.$transaction(async (tx) => {
+          const claim = await tx.checkpoint.updateMany({
+            where: { id: body.checkpointId, actif: true, disparait_apres_passage: true },
+            data: { actif: false },
+          });
+          if (claim.count === 0) {
+            throw new AppError(409, 'Ce checkpoint vient d\'être pris par une autre équipe');
+          }
+          return tx.validation.create({ data: validationData });
+        })
+      : await prisma.validation.create({ data: validationData });
 
     if (isAuto) {
       // Effacer le checkpoint obligatoire si c'était celui-ci

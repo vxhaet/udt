@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiFetch, type CarteData, type ClassementEntry } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
+import { DEPART_COLOR, buildPointsColorMap } from '@/lib/pointsColors';
 
 // ── Couleur déterministe par équipe ───────────────────────────────────────────
 
@@ -44,10 +45,17 @@ map.setView([46.5,2.5],6);
 L.control.zoom({position:'bottomright'}).addTo(map);
 window.ReactNativeWebView && window.ReactNativeWebView.postMessage('MAP_READY');
 
-var CPCOLORS={DEPART:'#22c55e',ARRIVEE:'#ef4444',EPHEMERE_QG:'#f97316',NORMAL:'#3b82f6'};
 var _cpMarkers=[],_teamLines=[],_teamMarkers=[];
 
-function mkCpIcon(color,label){
+function mkCpIcon(color,label,isDepart){
+  if(isDepart){
+    var w=Math.max(30,label.length*8+14);
+    return L.divIcon({
+      className:'',
+      html:'<div style="min-width:'+w+'px;height:30px;border-radius:15px;background:'+color+';border:2px solid white;display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:10px;font-weight:900;color:white;box-shadow:0 2px 6px rgba(0,0,0,.4);white-space:nowrap">'+label+'</div>',
+      iconSize:[w,30],iconAnchor:[w/2,15]
+    });
+  }
   return L.divIcon({
     className:'',
     html:'<div style="width:26px;height:26px;border-radius:50%;background:'+color+';border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:white;box-shadow:0 2px 6px rgba(0,0,0,.4)">'+label+'</div>',
@@ -73,12 +81,24 @@ window.updateSuivi=function(data){
 
   var allPts=[];
 
+  var pcm=data.pointsColorMap||{};
+  var depColor=data.departColor||'#10b981';
   (data.checkpoints||[]).forEach(function(cp){
     if(cp.latitude==null||cp.longitude==null)return;
     var t=cp.type||'NORMAL';
-    var color=CPCOLORS[t]||'#3b82f6';
-    var label=t==='DEPART'?'D':t==='ARRIVEE'?'A':String(cp.ordre_affichage||cp.points||'?');
-    var m=L.marker([cp.latitude,cp.longitude],{icon:mkCpIcon(color,label),zIndexOffset:100}).addTo(map);
+    var isDepart=t==='DEPART';
+    var isArrivee=t==='ARRIVEE';
+    var isEph=t==='EPHEMERE_QG';
+    var color;
+    if(isDepart){color=depColor;}
+    else if(isArrivee){color='#ef4444';}
+    else if(isEph){color='#f97316';}
+    else{color=pcm[String(cp.points)]||'#3b82f6';}
+    var label;
+    if(isDepart){var fn=cp.formats&&cp.formats[0]?cp.formats[0].nom:'D';label=fn;}
+    else if(isArrivee){label='A';}
+    else{label=String(cp.ordre_affichage||cp.points||'?');}
+    var m=L.marker([cp.latitude,cp.longitude],{icon:mkCpIcon(color,label,isDepart),zIndexOffset:100}).addTo(map);
     m.bindTooltip(cp.nom||'',{direction:'top'});
     _cpMarkers.push(m);
     allPts.push([cp.latitude,cp.longitude]);
@@ -176,8 +196,9 @@ export default function SuiviScreen() {
 
   const injectSuivi = useCallback((checkpoints: SuiviData['checkpoints'], teams: SuiviTeam[]) => {
     if (!mapReadyRef.current) return;
+    const pointsColorMap = buildPointsColorMap(checkpoints);
     webRef.current?.injectJavaScript(
-      `window.updateSuivi(${JSON.stringify({ checkpoints, teams })}); true;`,
+      `window.updateSuivi(${JSON.stringify({ checkpoints, teams, pointsColorMap, departColor: DEPART_COLOR })}); true;`,
     );
   }, []);
 

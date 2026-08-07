@@ -209,25 +209,37 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
     const pointsVisible = isAdmin || now >= edition.devoilement_points;
     const departVisible = isAdmin || now >= edition.devoilement_depart;
 
-    const checkpoints = checkpointsVisible
-      ? await prisma.checkpoint.findMany({
-          where: { edition_id: req.params.id, actif: true },
-          select: {
-            id: true,
-            nom: true,
-            latitude: true,
-            longitude: true,
-            points: pointsVisible,
-            rayon_validation_metres: true,
-            type_validation: true,
-            type: true,
-            ordre_affichage: true,
-            tous_formats: true,
-            formats: { select: { id: true } },
-          },
-          orderBy: { ordre_affichage: 'asc' },
-        })
-      : [];
+    // DEPART/ARRIVEE follow departVisible ; NORMAL/EPHEMERE_QG follow checkpointsVisible
+    const cpSelect = {
+      id: true,
+      nom: true,
+      latitude: true,
+      longitude: true,
+      points: pointsVisible,
+      rayon_validation_metres: true,
+      type_validation: true,
+      type: true,
+      ordre_affichage: true,
+      tous_formats: true,
+      formats: { select: { id: true, nom: true } },
+    };
+
+    const checkpoints = [
+      ...(departVisible
+        ? await prisma.checkpoint.findMany({
+            where: { edition_id: req.params.id, actif: true, type: { in: ['DEPART', 'ARRIVEE'] } },
+            select: cpSelect,
+            orderBy: { ordre_affichage: 'asc' },
+          })
+        : []),
+      ...(checkpointsVisible
+        ? await prisma.checkpoint.findMany({
+            where: { edition_id: req.params.id, actif: true, type: { notIn: ['DEPART', 'ARRIVEE'] } },
+            select: cpSelect,
+            orderBy: { ordre_affichage: 'asc' },
+          })
+        : []),
+    ];
 
     const validations = await prisma.validation.findMany({
       where: {

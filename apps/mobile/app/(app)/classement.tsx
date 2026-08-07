@@ -294,6 +294,7 @@ export default function ClassementScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.filterBar}
           contentContainerStyle={styles.filterScroll}
         >
           <TouchableOpacity
@@ -553,14 +554,16 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 10, fontWeight: '600', marginTop: 2 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyText: { color: '#374151', fontSize: 14 },
-  filterScroll: { paddingHorizontal: 12, paddingVertical: 8, gap: 6 },
+  filterBar: { flexShrink: 0, flexGrow: 0 },
+  filterScroll: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center' },
   filterBtn: {
-    paddingHorizontal: 12, paddingVertical: 5,
+    flexShrink: 0,
+    paddingHorizontal: 16, paddingVertical: 7,
     borderRadius: 20, borderWidth: 1, borderColor: '#1e293b',
     backgroundColor: '#0f172a',
   },
   filterBtnActive: { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
-  filterBtnText: { color: '#64748b', fontSize: 12, fontWeight: '500' },
+  filterBtnText: { color: '#64748b', fontSize: 13, fontWeight: '500' },
   filterBtnTextActive: { color: 'white' },
   lastCp: { color: '#475569', fontSize: 11, marginTop: 2 },
   lastCpTime: { color: '#334155' },

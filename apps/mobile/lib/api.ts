@@ -113,7 +113,7 @@ export interface Checkpoint {
   actif: boolean;
   ordre_affichage?: number | null;
   tous_formats?: boolean;
-  formats?: { id: string }[];
+  formats?: { id: string; nom: string }[];
 }
 
 export interface CarteData {

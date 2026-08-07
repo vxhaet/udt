@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiFetch, uploadFile, type CarteData, type Checkpoint } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/hooks/useSocket';
+import { DEPART_COLOR, POINTS_PALETTE, buildPointsColorMap } from '@/lib/pointsColors';
 
 // ── Haversine (client) ────────────────────────────────────────────────────────
 
@@ -50,30 +51,21 @@ map.setView([46.5,2.5],6);
 L.control.zoom({position:'bottomright'}).addTo(map);
 
 var _user=null,_markers={},_circles={};
-var COLORS={DEPART:'#22c55e',ARRIVEE:'#ef4444',EPHEMERE_QG:'#f97316'};
 
-function pointsColor(pts){
-  if(pts>=50)return '#7c3aed';
-  if(pts>=40)return '#f97316';
-  if(pts>=30)return '#eab308';
-  if(pts>=20)return '#06b6d4';
-  return '#60a5fa';
-}
-
-function resolveType(cp){
-  if(cp.type)return cp.type;
-  var n=(cp.nom||'').toLowerCase();
-  if(n.indexOf('d\u00e9part')!==-1||n.indexOf('depart')!==-1)return 'DEPART';
-  if(n.indexOf('arriv')!==-1)return 'ARRIVEE';
-  return 'NORMAL';
-}
-
-function mkIcon(color,label,dim,pulse,isArrivee){
+function mkIcon(color,label,dim,pulse,isArrivee,isDepart){
   if(isArrivee){
     return L.divIcon({
       className:'',
       html:'<div style="width:32px;height:32px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.4);opacity:'+(dim?0.45:1)+';position:relative"><svg viewBox="0 0 32 32" style="position:absolute;inset:0;width:100%;height:100%"><rect width="8" height="8" x="0" y="0" fill="#111"/><rect width="8" height="8" x="8" y="0" fill="white"/><rect width="8" height="8" x="16" y="0" fill="#111"/><rect width="8" height="8" x="24" y="0" fill="white"/><rect width="8" height="8" x="0" y="8" fill="white"/><rect width="8" height="8" x="8" y="8" fill="#111"/><rect width="8" height="8" x="16" y="8" fill="white"/><rect width="8" height="8" x="24" y="8" fill="#111"/><rect width="8" height="8" x="0" y="16" fill="#111"/><rect width="8" height="8" x="8" y="16" fill="white"/><rect width="8" height="8" x="16" y="16" fill="#111"/><rect width="8" height="8" x="24" y="16" fill="white"/><rect width="8" height="8" x="0" y="24" fill="white"/><rect width="8" height="8" x="8" y="24" fill="#111"/><rect width="8" height="8" x="16" y="24" fill="white"/><rect width="8" height="8" x="24" y="24" fill="#111"/></svg><span style="position:relative;z-index:1;font-size:12px;font-weight:900;color:white;text-shadow:0 0 4px #000,0 0 4px #000">A</span></div>',
       iconSize:[32,32],iconAnchor:[16,16]
+    });
+  }
+  if(isDepart){
+    var w=Math.max(36,label.length*9+16);
+    return L.divIcon({
+      className:'',
+      html:'<div style="min-width:'+w+'px;height:36px;border-radius:18px;background:'+color+';border:2px solid white;display:flex;align-items:center;justify-content:center;padding:0 8px;font-size:12px;font-weight:900;color:white;box-shadow:0 2px 6px rgba(0,0,0,.4);white-space:nowrap">'+label+'</div>',
+      iconSize:[w,36],iconAnchor:[w/2,18]
     });
   }
   return L.divIcon({
@@ -92,20 +84,34 @@ window.updateCheckpoints=function(data){
   Object.values(_circles).forEach(function(c){c.remove();});
   _markers={};_circles={};
   var validated=new Set(data.myValidations||[]);
+  var pcm=data.pointsColorMap||{};
   var pts=[];
   (data.checkpoints||[]).forEach(function(cp){
     if(cp.latitude==null||cp.longitude==null)return;
     pts.push([cp.latitude,cp.longitude]);
-    var t=resolveType(cp);
+    var t=cp.type||'NORMAL';
     var isVal=validated.has(cp.id);
-    var color=isVal?'#6b7280':(COLORS[t]||(t==='NORMAL'?pointsColor(cp.points||0):'#3b82f6'));
-    var label=t==='DEPART'?'D':t==='ARRIVEE'?'A':(isVal?'✓':String(cp.ordre_affichage||cp.points||'?'));
-    var pulse=t==='EPHEMERE_QG'&&!isVal;
-    var m=L.marker([cp.latitude,cp.longitude],{icon:mkIcon(color,label,isVal,pulse,t==='ARRIVEE'&&!isVal)}).addTo(map);
-    var tappable=!isVal&&t!=='DEPART'&&t!=='ARRIVEE';
-    if(tappable)(function(c){m.on('click',function(){post({type:'CP_TAP',checkpoint:c});});})(cp);
+    var isDepart=t==='DEPART';
+    var isArrivee=t==='ARRIVEE';
+    var isEph=t==='EPHEMERE_QG';
+    var color;
+    if(isVal){color='#6b7280';}
+    else if(isDepart){color=data.departColor||'#10b981';}
+    else if(isArrivee){color='#ef4444';}
+    else if(isEph){color='#f97316';}
+    else{color=pcm[String(cp.points)]||'#3b82f6';}
+    var label;
+    if(isDepart){
+      var fn=cp.formats&&cp.formats[0]?cp.formats[0].nom:'D';
+      label=fn;
+    }else if(isArrivee){label='A';}
+    else if(isVal){label='\\u2713';}
+    else{label=String(cp.ordre_affichage||cp.points||'?');}
+    var pulse=isEph&&!isVal;
+    var m=L.marker([cp.latitude,cp.longitude],{icon:mkIcon(color,label,isVal,pulse,isArrivee&&!isVal,isDepart&&!isVal)}).addTo(map);
+    (function(c){m.on('click',function(){post({type:'CP_TAP',checkpoint:c});});})(cp);
     _markers[cp.id]=m;
-    if((cp.rayon_validation_metres||0)>0){
+    if((cp.rayon_validation_metres||0)>0&&!isDepart&&!isArrivee){
       _circles[cp.id]=L.circle([cp.latitude,cp.longitude],{
         radius:cp.rayon_validation_metres,color:color,fillOpacity:0.1,weight:1
       }).addTo(map);
@@ -160,6 +166,7 @@ export default function CarteScreen() {
 
   // État du bottom sheet de validation
   const [selectedCp, setSelectedCp] = useState<Checkpoint | null>(null);
+  const [selectedCpValidated, setSelectedCpValidated] = useState(false);
   const [validationPos, setValidationPos] = useState<{ lat: number; lng: number } | null>(null);
   const [validationStep, setValidationStep] = useState<'form' | 'submitting' | 'result'>('form');
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
@@ -176,28 +183,22 @@ export default function CarteScreen() {
 
   const injectCheckpoints = useCallback((data: CarteData) => {
     if (!mapReadyRef.current) return;
-    const allCps = [
-      ...(data.depart?.lat != null && data.depart?.lng != null ? [{
-        id: '__depart__', type: 'DEPART' as const,
-        latitude: data.depart.lat, longitude: data.depart.lng,
-        nom: 'Départ', rayon_validation_metres: 0, actif: true,
-        type_validation: 'AUTO' as const,
-      }] : []),
-      ...(data.arrivee?.lat != null && data.arrivee?.lng != null ? [{
-        id: '__arrivee__', type: 'ARRIVEE' as const,
-        latitude: data.arrivee.lat, longitude: data.arrivee.lng,
-        nom: 'Arrivée', rayon_validation_metres: 0, actif: true,
-        type_validation: 'AUTO' as const,
-      }] : []),
-      ...data.checkpoints
-        .map((cp) => cp.actif !== false ? { ...cp, type: cp.type ?? 'NORMAL' } : null)
-        .filter((cp): cp is NonNullable<typeof cp> => cp !== null),
-    ];
+    const allCps = data.checkpoints
+      .filter((cp) => cp.actif !== false)
+      .map((cp) => ({ ...cp, type: cp.type ?? 'NORMAL' }));
+
+    const pointsColorMap = buildPointsColorMap(allCps);
+
     const myValidations = data.validations
       .filter((v) => v.equipe_id === equipeIdRef.current)
       .map((v) => v.checkpoint_id);
     webRef.current?.injectJavaScript(
-      `window.updateCheckpoints(${JSON.stringify({ checkpoints: allCps, myValidations })}); true;`,
+      `window.updateCheckpoints(${JSON.stringify({
+        checkpoints: allCps,
+        myValidations,
+        pointsColorMap,
+        departColor: DEPART_COLOR,
+      })}); true;`,
     );
   }, []);
 
@@ -287,7 +288,11 @@ export default function CarteScreen() {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === 'CP_TAP') {
-        setSelectedCp(msg.checkpoint as Checkpoint);
+        const cp = msg.checkpoint as Checkpoint;
+        const isValidated = (carteDataRef.current?.validations ?? [])
+          .some((v) => v.checkpoint_id === cp.id && v.equipe_id === equipeIdRef.current);
+        setSelectedCp(cp);
+        setSelectedCpValidated(isValidated);
         setValidationPos(null);
         setValidationStep('form');
         setValidationResult(null);
@@ -451,6 +456,7 @@ export default function CarteScreen() {
 
   const resetValidation = useCallback(() => {
     setSelectedCp(null);
+    setSelectedCpValidated(false);
     setValidationPos(null);
     setValidationStep('form');
     setValidationResult(null);
@@ -515,38 +521,50 @@ export default function CarteScreen() {
             <Ionicons name="locate" size={22} color="white" />
           </TouchableOpacity>
 
-          {/* Légende */}
+          {/* Légende dynamique */}
           <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-              <Text style={styles.legendText}>Départ</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={styles.legendChecker}>
-                <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
-                <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
-                <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
-                <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
+            {carteData?.checkpoints.some((c) => c.type === 'DEPART') && (
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: DEPART_COLOR }]} />
+                <Text style={styles.legendText}>Départ</Text>
               </View>
-              <Text style={styles.legendText}>Arrivée</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
-              <Text style={styles.legendText}>QG Eph.</Text>
-            </View>
-            <View style={styles.legendSeparator} />
-            {[
-              { label: '10 pts', color: '#60a5fa' },
-              { label: '20 pts', color: '#06b6d4' },
-              { label: '30 pts', color: '#eab308' },
-              { label: '40 pts', color: '#f97316' },
-              { label: '50 pts', color: '#7c3aed' },
-            ].map(({ label, color }) => (
-              <View key={label} style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: color }]} />
-                <Text style={styles.legendText}>{label}</Text>
+            )}
+            {carteData?.checkpoints.some((c) => c.type === 'ARRIVEE') && (
+              <View style={styles.legendItem}>
+                <View style={styles.legendChecker}>
+                  <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
+                  <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
+                  <View style={[styles.checkerCell, { backgroundColor: '#fff' }]} />
+                  <View style={[styles.checkerCell, { backgroundColor: '#111' }]} />
+                </View>
+                <Text style={styles.legendText}>Arrivée</Text>
               </View>
-            ))}
+            )}
+            {carteData?.checkpoints.some((c) => c.type === 'EPHEMERE_QG') && (
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
+                <Text style={styles.legendText}>QG Eph.</Text>
+              </View>
+            )}
+            {(() => {
+              const pts = [...new Set(
+                (carteData?.checkpoints ?? [])
+                  .filter((c) => (c.type ?? 'NORMAL') === 'NORMAL' && c.points != null)
+                  .map((c) => c.points!),
+              )].sort((a, b) => a - b);
+              if (pts.length === 0) return null;
+              return (
+                <>
+                  <View style={styles.legendSeparator} />
+                  {pts.map((p, i) => (
+                    <View key={p} style={styles.legendItem}>
+                      <View style={[styles.legendDot, { backgroundColor: POINTS_PALETTE[i % POINTS_PALETTE.length] }]} />
+                      <Text style={styles.legendText}>{p} pts</Text>
+                    </View>
+                  ))}
+                </>
+              );
+            })()}
           </View>
 
           {/* Bouton fixe "Valider un checkpoint" — masqué si sheet ouverte */}
@@ -573,7 +591,56 @@ export default function CarteScreen() {
             <View style={styles.bottomSheet}>
               <View style={styles.bottomSheetHandle} />
 
-              {validationStep === 'result' && validationResult ? (
+              {selectedCp.type === 'DEPART' || selectedCp.type === 'ARRIVEE' ? (
+                // ── Info DEPART / ARRIVEE ───────────────────────────────────
+                <View style={styles.sheetForm}>
+                  <View style={styles.sheetHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cpName}>
+                        {selectedCp.type === 'DEPART'
+                          ? `Départ ${selectedCp.formats?.[0]?.nom ?? ''}`.trim()
+                          : 'Arrivée'}
+                      </Text>
+                      <Text style={styles.cpRayon}>{selectedCp.nom}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.closeBtn} onPress={resetValidation}>
+                      <Ionicons name="close" size={20} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.infoBadge}>
+                    <Ionicons
+                      name={selectedCp.type === 'DEPART' ? 'flag' : 'flag-outline'}
+                      size={18}
+                      color={selectedCp.type === 'DEPART' ? DEPART_COLOR : '#94a3b8'}
+                    />
+                    <Text style={styles.infoBadgeText}>
+                      {selectedCp.type === 'DEPART' ? 'Point de départ' : 'Point d\'arrivée'}
+                    </Text>
+                  </View>
+                </View>
+              ) : selectedCpValidated ? (
+                // ── Info "Déjà validé" ──────────────────────────────────────
+                <View style={styles.sheetForm}>
+                  <View style={styles.sheetHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.cpName}>{selectedCp.nom}</Text>
+                      <View style={styles.cpMeta}>
+                        {selectedCp.points !== undefined && (
+                          <Text style={styles.cpPoints}>{selectedCp.points} pts</Text>
+                        )}
+                        <Text style={styles.cpRayon}>± {selectedCp.rayon_validation_metres} m</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity style={styles.closeBtn} onPress={resetValidation}>
+                      <Ionicons name="close" size={20} color="#6b7280" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.validatedBadge}>
+                    <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
+                    <Text style={styles.validatedBadgeText}>Déjà validé</Text>
+                  </View>
+                </View>
+              ) : validationStep === 'result' && validationResult ? (
                 // ── Écran résultat ──────────────────────────────────────────
                 <View style={styles.resultContainer}>
                   {validationResult.statut === 'APPROUVE' ? (
@@ -784,4 +851,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32, paddingVertical: 12,
   },
   closeResultBtnText: { color: 'white', fontWeight: '600', fontSize: 15 },
+
+  // Badge "Déjà validé"
+  validatedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(34,197,94,0.12)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  validatedBadgeText: { color: '#22c55e', fontWeight: '700', fontSize: 15 },
+
+  // Badge info DEPART/ARRIVEE
+  infoBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(148,163,184,0.08)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  infoBadgeText: { color: '#94a3b8', fontWeight: '600', fontSize: 15 },
 });

@@ -106,6 +106,7 @@ window.updateCheckpoints=function(data){
       label=fn;
     }else if(isArrivee){label='A';}
     else if(isVal){label='\\u2713';}
+    else if(isEph){label='QG';}
     else{label=String(cp.ordre_affichage||cp.points||'?');}
     var pulse=isEph&&!isVal;
     var m=L.marker([cp.latitude,cp.longitude],{icon:mkIcon(color,label,isVal,pulse,isArrivee&&!isVal,isDepart&&!isVal)}).addTo(map);
@@ -251,6 +252,22 @@ export default function CarteScreen() {
   useEffect(() => {
     if (!socket) return;
     const refresh = () => fetchData().catch(console.error);
+    const removeAndRefresh = (data: { checkpointId: string }) => {
+      // Instant marker removal + local state update
+      webRef.current?.injectJavaScript(
+        `window.removeMarker(${JSON.stringify(data.checkpointId)}); true;`,
+      );
+      if (carteDataRef.current) {
+        const updated = {
+          ...carteDataRef.current,
+          checkpoints: carteDataRef.current.checkpoints.filter((cp) => cp.id !== data.checkpointId),
+        };
+        carteDataRef.current = updated;
+        setCarteData(updated);
+      }
+      // Also refresh to sync full state
+      fetchData().catch(console.error);
+    };
     const onExpired = (data: { checkpointId: string }) => {
       webRef.current?.injectJavaScript(
         `window.removeMarker(${JSON.stringify(data.checkpointId)}); true;`,
@@ -266,12 +283,12 @@ export default function CarteScreen() {
     };
     socket.on('validation:approved', refresh);
     socket.on('checkpoint:revealed', refresh);
-    socket.on('checkpoint:taken', refresh);
+    socket.on('checkpoint:taken', removeAndRefresh);
     socket.on('checkpoint:expired', onExpired);
     return () => {
       socket.off('validation:approved', refresh);
       socket.off('checkpoint:revealed', refresh);
-      socket.off('checkpoint:taken', refresh);
+      socket.off('checkpoint:taken', removeAndRefresh);
       socket.off('checkpoint:expired', onExpired);
     };
   }, [socket, fetchData]);

@@ -212,6 +212,7 @@ checkpointsRouter.post(
         contenu: alertContenu,
         type: 'ALERTE',
         timestamp: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
       });
 
       // Push Expo

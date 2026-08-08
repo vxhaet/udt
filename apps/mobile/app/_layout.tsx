@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
-import { View, Animated, Dimensions, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/context/AuthContext';
 import { registerForPushNotifications } from '@/lib/notifications';
@@ -20,28 +20,31 @@ const TICKER_COLORS: Record<string, string> = {
 function MessageTicker() {
   const { token } = useAuth();
   const insets = useSafeAreaInsets();
-  const [message, setMessage] = useState<{ contenu: string; type: string } | null>(null);
+  const [message, setMessage] = useState<{ contenu: string; type: string; expires_at?: string } | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
-  // Ref pour accéder au message courant dans les handlers socket sans dépendance de closure
-  const messageRef = useRef<{ contenu: string; type: string } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const messageRef = useRef(message);
   messageRef.current = message;
+
+  const clearTicker = useCallback(() => {
+    if (animRef.current) animRef.current.stop();
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setMessage(null);
+    setRemaining(null);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
     const socket = getSocket();
-    if (!socket) {
-      console.log('[MessageTicker] socket null après auth — abonnement ignoré');
-      return;
-    }
-    console.log('[MessageTicker] Abonnement message:qg sur socket', socket.id);
+    if (!socket) return;
 
-    const handler = (msg: { contenu: string; type: string }) => {
-      console.log('[MessageTicker] message:qg reçu', msg.type, msg.contenu.slice(0, 40));
+    const handler = (msg: { contenu: string; type: string; expires_at?: string }) => {
       if (animRef.current) animRef.current.stop();
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       setMessage(msg);
       translateX.setValue(SCREEN_WIDTH);
-      // Boucle infinie : scroll → reset instantané → scroll → ...
       animRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(translateX, {
@@ -57,28 +60,44 @@ function MessageTicker() {
         ]),
       );
       animRef.current.start();
+
+      // Start countdown if expires_at is provided
+      if (msg.expires_at) {
+        const expiresMs = new Date(msg.expires_at).getTime();
+        const update = () => {
+          const left = Math.max(0, Math.round((expiresMs - Date.now()) / 1000));
+          setRemaining(left);
+          if (left <= 0) {
+            clearTicker();
+          }
+        };
+        update();
+        timerRef.current = setInterval(update, 1000);
+      } else {
+        setRemaining(null);
+      }
     };
 
     const onExpired = () => {
-      // Masquer le bandeau si le message en cours est une ALERTE (liée à un CP éphémère)
       if (messageRef.current?.type === 'ALERTE') {
-        if (animRef.current) animRef.current.stop();
-        setMessage(null);
+        clearTicker();
       }
     };
 
     socket.on('message:qg', handler);
     socket.on('checkpoint:expired', onExpired);
     return () => {
-      console.log('[MessageTicker] Désabonnement message:qg');
       socket.off('message:qg', handler);
       socket.off('checkpoint:expired', onExpired);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [token, translateX]);
+  }, [token, translateX, clearTicker]);
 
   if (!message) return null;
 
   const bgColor = TICKER_COLORS[message.type] ?? '#3b82f6';
+  const mins = remaining !== null ? Math.floor(remaining / 60) : null;
+  const secs = remaining !== null ? remaining % 60 : null;
 
   return (
     <View style={[styles.tickerBar, { backgroundColor: bgColor, top: insets.top }]}>
@@ -88,6 +107,13 @@ function MessageTicker() {
       >
         {message.contenu}
       </Animated.Text>
+      {remaining !== null && remaining > 0 && (
+        <View style={styles.countdownBadge}>
+          <Text style={styles.countdownText}>
+            {mins}:{String(secs).padStart(2, '0')}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -108,6 +134,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     paddingHorizontal: 16,
+  },
+  countdownBadge: {
+    position: 'absolute',
+    right: 8,
+    top: 6,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  countdownText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
   },
 });
 

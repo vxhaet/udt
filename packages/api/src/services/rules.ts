@@ -78,5 +78,10 @@ export async function evaluateRules(
     // Always update Redis + notify, even if already claimed
     await redis.sAdd(keys.editionTakenCheckpoints(editionId), checkpointId);
     emitToAll(editionId, 'checkpoint:taken', { checkpointId, takenByEquipeId: equipeId });
+
+    // For EPHEMERE_QG, also emit expired to clear ticker banner + trigger instant removal
+    if (checkpoint.type === 'EPHEMERE_QG') {
+      emitToAll(editionId, 'checkpoint:expired', { checkpointId });
+    }
   }
 }

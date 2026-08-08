@@ -250,6 +250,7 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
         equipe_id: true,
         checkpoint_id: true,
         validated_at: true,
+        checkpoint: { select: { latitude: true, longitude: true, nom: true, points: true, type: true } },
       },
       orderBy: { validated_at: 'asc' },
     });

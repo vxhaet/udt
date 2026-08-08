@@ -212,14 +212,15 @@ export default function SuiviScreen() {
       apiFetch<ClassementEntry[]>(`/editions/${editionId}/classement`),
       apiFetch<{ gel_classement: string }>(`/editions/${editionId}`),
     ]);
-    console.log('[Suivi] carteData.checkpoints:', JSON.stringify(carteData.checkpoints, null, 2));
-    console.log('[Suivi] carteData.validations:', JSON.stringify(carteData.validations, null, 2));
-    console.log('[Suivi] classement équipes:', JSON.stringify(classement, null, 2));
-
-    // Map checkpoint_id → [lat, lng]
+    // Map checkpoint_id → [lat, lng] (active checkpoints + coords from validations for inactive ones)
     const cpCoords = new Map<string, [number, number]>();
     for (const cp of carteData.checkpoints) {
       cpCoords.set(cp.id, [cp.latitude, cp.longitude]);
+    }
+    for (const v of carteData.validations) {
+      if (!cpCoords.has(v.checkpoint_id)) {
+        cpCoords.set(v.checkpoint_id, [v.checkpoint.latitude, v.checkpoint.longitude]);
+      }
     }
 
     // Map equipeId → { nom, formatId }
@@ -322,9 +323,13 @@ export default function SuiviScreen() {
     const refresh = () => fetchData().catch(console.error);
     socket.on('validation:approved', refresh);
     socket.on('checkpoint:revealed', refresh);
+    socket.on('checkpoint:taken', refresh);
+    socket.on('checkpoint:expired', refresh);
     return () => {
       socket.off('validation:approved', refresh);
       socket.off('checkpoint:revealed', refresh);
+      socket.off('checkpoint:taken', refresh);
+      socket.off('checkpoint:expired', refresh);
     };
   }, [socket, fetchData]);
 

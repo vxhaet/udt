@@ -120,7 +120,12 @@ export interface CarteData {
   depart: { lat: number; lng: number } | null;
   arrivee: { lat: number; lng: number } | null;
   checkpoints: Checkpoint[];
-  validations: { equipe_id: string; checkpoint_id: string; validated_at: string }[];
+  validations: {
+    equipe_id: string;
+    checkpoint_id: string;
+    validated_at: string;
+    checkpoint: { latitude: number; longitude: number; nom: string; points: number; type: string };
+  }[];
 }
 
 export interface ClassementEntry {

@@ -114,6 +114,7 @@ export interface Checkpoint {
   ordre_affichage?: number | null;
   tous_formats?: boolean;
   formats?: { id: string; nom: string }[];
+  expires_at?: string | null;
 }
 
 export interface CarteData {

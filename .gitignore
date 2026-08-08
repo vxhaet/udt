@@ -38,3 +38,4 @@ coverage/
 .expo/
 packages/db/tmp-*.ts
 tmp-*.ts
+.env.local.backup

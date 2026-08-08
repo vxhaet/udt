@@ -221,6 +221,7 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
       type: true,
       ordre_affichage: true,
       tous_formats: true,
+      expires_at: true,
       formats: { select: { id: true, nom: true } },
     };
 

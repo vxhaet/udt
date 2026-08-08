@@ -204,7 +204,7 @@ checkpointsRouter.post(
 
       // Message d'alerte broadcast (WS + push)
       const alertContenu =
-        `🚨 Checkpoint QG éphémère apparu ! Soyez les premiers à le valider pour remporter ${cpPoints} points. Il expire dans ${dureeMins} minutes.`;
+        `🚨 QG éphémère actif ! ${cpPoints} points ! Foncez !`;
 
       emitToAll(req.params.id, 'message:qg', {
         id: crypto.randomUUID(),

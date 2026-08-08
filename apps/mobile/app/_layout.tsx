@@ -1,11 +1,11 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
+import { AppState, View, Text, Animated, Dimensions, StyleSheet } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/context/AuthContext';
 import { registerForPushNotifications } from '@/lib/notifications';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, type CarteData } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { getSocket } from '@/lib/socket';
 
@@ -17,10 +17,16 @@ const TICKER_COLORS: Record<string, string> = {
   METEO: '#06b6d4',
 };
 
+interface TickerMessage {
+  contenu: string;
+  type: string;
+  expires_at?: string;
+}
+
 function MessageTicker() {
-  const { token } = useAuth();
+  const { token, editionId } = useAuth();
   const insets = useSafeAreaInsets();
-  const [message, setMessage] = useState<{ contenu: string; type: string; expires_at?: string } | null>(null);
+  const [message, setMessage] = useState<TickerMessage | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -35,53 +41,83 @@ function MessageTicker() {
     setRemaining(null);
   }, []);
 
+  const showAlert = useCallback((msg: TickerMessage) => {
+    if (animRef.current) animRef.current.stop();
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setMessage(msg);
+    translateX.setValue(SCREEN_WIDTH);
+    animRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(translateX, {
+          toValue: -SCREEN_WIDTH * 2,
+          duration: 9000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateX, {
+          toValue: SCREEN_WIDTH,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animRef.current.start();
+
+    if (msg.expires_at) {
+      const expiresMs = new Date(msg.expires_at).getTime();
+      const update = () => {
+        const left = Math.max(0, Math.round((expiresMs - Date.now()) / 1000));
+        setRemaining(left);
+        if (left <= 0) clearTicker();
+      };
+      update();
+      timerRef.current = setInterval(update, 1000);
+    } else {
+      setRemaining(null);
+    }
+  }, [translateX, clearTicker]);
+
+  // Check for active QG éphémère via API (mount + foreground)
+  const checkForActiveQG = useCallback(async () => {
+    if (!editionId || messageRef.current) return;
+    try {
+      const data = await apiFetch<CarteData>(`/editions/${editionId}/carte`);
+      const now = Date.now();
+      const active = data.checkpoints.find(
+        (cp) => cp.type === 'EPHEMERE_QG' && cp.expires_at && new Date(cp.expires_at).getTime() > now,
+      );
+      if (active && !messageRef.current) {
+        showAlert({
+          contenu: `🚨 QG éphémère actif ! ${active.points ?? '?'} points ! Foncez !`,
+          type: 'ALERTE',
+          expires_at: active.expires_at!,
+        });
+      }
+    } catch { /* ignore — app might not be fully loaded yet */ }
+  }, [editionId, showAlert]);
+
+  // On mount: check for active QG
+  useEffect(() => {
+    if (!token || !editionId) return;
+    checkForActiveQG();
+  }, [token, editionId, checkForActiveQG]);
+
+  // On foreground: re-check
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkForActiveQG();
+    });
+    return () => sub.remove();
+  }, [checkForActiveQG]);
+
+  // Socket listeners
   useEffect(() => {
     if (!token) return;
     const socket = getSocket();
     if (!socket) return;
 
-    const handler = (msg: { contenu: string; type: string; expires_at?: string }) => {
-      if (animRef.current) animRef.current.stop();
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      setMessage(msg);
-      translateX.setValue(SCREEN_WIDTH);
-      animRef.current = Animated.loop(
-        Animated.sequence([
-          Animated.timing(translateX, {
-            toValue: -SCREEN_WIDTH * 2,
-            duration: 18000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(translateX, {
-            toValue: SCREEN_WIDTH,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      );
-      animRef.current.start();
-
-      // Start countdown if expires_at is provided
-      if (msg.expires_at) {
-        const expiresMs = new Date(msg.expires_at).getTime();
-        const update = () => {
-          const left = Math.max(0, Math.round((expiresMs - Date.now()) / 1000));
-          setRemaining(left);
-          if (left <= 0) {
-            clearTicker();
-          }
-        };
-        update();
-        timerRef.current = setInterval(update, 1000);
-      } else {
-        setRemaining(null);
-      }
-    };
-
+    const handler = (msg: TickerMessage) => showAlert(msg);
     const onExpired = () => {
-      if (messageRef.current?.type === 'ALERTE') {
-        clearTicker();
-      }
+      if (messageRef.current?.type === 'ALERTE') clearTicker();
     };
 
     socket.on('message:qg', handler);
@@ -91,7 +127,7 @@ function MessageTicker() {
       socket.off('checkpoint:expired', onExpired);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [token, translateX, clearTicker]);
+  }, [token, showAlert, clearTicker]);
 
   if (!message) return null;
 

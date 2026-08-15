@@ -12,17 +12,26 @@ const STRAVA_CLIENT_ID = process.env.EXPO_PUBLIC_STRAVA_CLIENT_ID ?? '';
 const STRAVA_REDIRECT_URI = 'http://192.168.0.242:3001/strava/callback';
 
 export default function ProfilScreen() {
-  const { signOut, participantId } = useAuth();
+  const { signOut, participantId, editionId } = useAuth();
   const [stravaConnected, setStravaConnected] = useState(false);
+  const [stravaEnabled, setStravaEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    apiFetch<{ connected: boolean }>('/strava/status')
-      .then(({ connected }) => setStravaConnected(connected))
+    if (!editionId) { setLoading(false); return; }
+    Promise.all([
+      apiFetch<{ config?: { segments_strava_actif: boolean } | null }>(`/editions/${editionId}`),
+      apiFetch<{ connected: boolean }>('/strava/status'),
+    ])
+      .then(([edition, strava]) => {
+        const enabled = edition.config?.segments_strava_actif !== false;
+        setStravaEnabled(enabled);
+        setStravaConnected(strava.connected);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [editionId]);
 
   async function handleConnectStrava() {
     setConnecting(true);
@@ -58,48 +67,50 @@ export default function ProfilScreen() {
         <Text style={styles.title}>Profil</Text>
       </View>
 
-      {/* Section Strava */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="bicycle-outline" size={18} color="#fc4c02" />
-          <Text style={styles.sectionTitle}>Strava</Text>
-        </View>
+      {/* Section Strava — masquée si segments_strava_actif === false */}
+      {stravaEnabled && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bicycle-outline" size={18} color="#fc4c02" />
+            <Text style={styles.sectionTitle}>Strava</Text>
+          </View>
 
-        {loading ? (
-          <ActivityIndicator color="#3b82f6" style={{ marginTop: 12 }} />
-        ) : stravaConnected ? (
-          <View style={styles.connectedCard}>
-            <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-            <View style={styles.connectedText}>
-              <Text style={styles.connectedTitle}>Compte connecté</Text>
-              <Text style={styles.connectedSub}>
-                Vos performances sur les segments chronométrés sont synchronisées automatiquement.
-              </Text>
+          {loading ? (
+            <ActivityIndicator color="#3b82f6" style={{ marginTop: 12 }} />
+          ) : stravaConnected ? (
+            <View style={styles.connectedCard}>
+              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+              <View style={styles.connectedText}>
+                <Text style={styles.connectedTitle}>Compte connecté</Text>
+                <Text style={styles.connectedSub}>
+                  Vos performances sur les segments chronométrés sont synchronisées automatiquement.
+                </Text>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View>
-            <Text style={styles.stravaDesc}>
-              Connectez votre compte Strava pour participer aux classements sur les segments
-              chronométrés de l'édition.
-            </Text>
-            <TouchableOpacity
-              style={[styles.stravaBtn, connecting && styles.stravaBtnDisabled]}
-              onPress={handleConnectStrava}
-              disabled={connecting}
-            >
-              {connecting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Ionicons name="link-outline" size={16} color="white" />
-              )}
-              <Text style={styles.stravaBtnText}>
-                {connecting ? 'Connexion en cours…' : 'Connecter Strava'}
+          ) : (
+            <View>
+              <Text style={styles.stravaDesc}>
+                Connectez votre compte Strava pour participer aux classements sur les segments
+                chronométrés de l'édition.
               </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+              <TouchableOpacity
+                style={[styles.stravaBtn, connecting && styles.stravaBtnDisabled]}
+                onPress={handleConnectStrava}
+                disabled={connecting}
+              >
+                {connecting ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Ionicons name="link-outline" size={16} color="white" />
+                )}
+                <Text style={styles.stravaBtnText}>
+                  {connecting ? 'Connexion en cours…' : 'Connecter Strava'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Déconnexion */}
       <View style={styles.section}>

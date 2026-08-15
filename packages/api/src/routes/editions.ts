@@ -107,7 +107,10 @@ editionsRouter.get('/:id', optionalAuth(), async (req, res, next) => {
   try {
     const edition = await prisma.edition.findUnique({
       where: { id: req.params.id },
-      include: { _count: { select: { equipes: true, checkpoints: true } } },
+      include: {
+        _count: { select: { equipes: true, checkpoints: true } },
+        config: { select: { segments_strava_actif: true } },
+      },
     });
     if (!edition) throw new AppError(404, 'Édition introuvable');
 

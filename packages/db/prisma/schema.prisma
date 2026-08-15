@@ -40,10 +40,6 @@ enum StatutEquipe {
   ANNULEE
 }
 
-enum RoleParticipant {
-  CAPITAINE
-  MEMBRE
-}
 
 enum StatutValidation {
   EN_ATTENTE
@@ -166,8 +162,6 @@ model Equipe {
   id                     String       @id @default(cuid())
   edition_id             String
   nom                    String
-  email_capitaine        String?
-  emails_membres         String[]
   format_course_id       String?
   code_acces             String       @unique
   score_total            Int          @default(0)
@@ -199,7 +193,6 @@ model Participant {
   strava_refresh_token String?
   // Token de push Expo pour les notifications
   expo_push_token     String?
-  role                RoleParticipant @default(MEMBRE)
   created_at          DateTime        @default(now())
 
   equipe              Equipe              @relation(fields: [equipe_id], references: [id], onDelete: Cascade)

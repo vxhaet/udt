@@ -72,32 +72,18 @@ export const CreateRegleSchema = z.object({
 // Equipe
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const CreateEquipeSchema = z.object({
-  editionId: z.string().cuid(),
-  nom: z.string().min(2).max(50),
-  capitaine: z.object({
-    nom: z.string().min(1).max(50),
-    prenom: z.string().min(1).max(50),
-    email: z.string().email(),
-  }),
-});
-
 export const InscriptionSchema = z.object({
   nom_equipe: z.string().min(2).max(50),
-  capitaine: z.object({
+  format_course_id: z.string().optional(),
+  participants: z.array(z.object({
     nom: z.string().min(1).max(50),
     prenom: z.string().min(1).max(50),
     email: z.string().email(),
-  }),
-  emails_membres: z.array(z.string().email()).max(3).default([]),
-  format_course_id: z.string().optional(),
-  platform: z.enum(['web', 'mobile']).default('web'),
+  })).min(1).max(4),
 });
 
 export const JoinEquipeSchema = z.object({
   code_acces: z.string().length(8),
-  nom: z.string().min(1).max(50),
-  prenom: z.string().min(1).max(50),
   email: z.string().email(),
 });
 

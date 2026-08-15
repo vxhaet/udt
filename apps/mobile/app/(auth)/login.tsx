@@ -7,45 +7,32 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/api';
 
-
-
 export default function LoginScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
-  const [form, setForm] = useState({ code_acces: '', prenom: '', nom: '', email: '' });
+  const [code, setCode] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function update(key: keyof typeof form) {
-    return (value: string) => setForm((f) => ({ ...f, [key]: value }));
-  }
-
   async function handleJoin() {
-    const { code_acces, prenom, nom, email } = form;
-    if (!code_acces.trim() || !prenom.trim() || !nom.trim() || !email.trim()) {
-      Alert.alert('Champs manquants', 'Tous les champs sont requis.');
+    if (!code.trim() || !email.trim()) {
+      Alert.alert('Champs manquants', 'Le code et l\'email sont requis.');
       return;
     }
-    if (code_acces.trim().length !== 8) {
-      Alert.alert('Code invalide', 'Le code équipe doit faire 8 caractères.');
+    if (code.trim().length !== 8) {
+      Alert.alert('Code invalide', 'Le code equipe doit faire 8 caracteres.');
       return;
     }
 
     setLoading(true);
     try {
-      const payload = {
-        code_acces: code_acces.trim().toUpperCase(),
-        nom: nom.trim(),
-        prenom: prenom.trim(),
-        email: email.trim().toLowerCase(),
-      };
-      console.log('[Login] POST /equipes/join payload:', JSON.stringify(payload));
-      const result = await apiFetch<{ token: string; participant: { nom: string; prenom: string } }>(
-        '/equipes/join',
-        {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        },
-      );
+      const result = await apiFetch<{ token: string }>('/equipes/join', {
+        method: 'POST',
+        body: JSON.stringify({
+          code_acces: code.trim().toUpperCase(),
+          email: email.trim().toLowerCase(),
+        }),
+      });
       await signIn(result.token);
       router.replace('/(app)/carte');
     } catch (err) {
@@ -66,17 +53,17 @@ export default function LoginScreen() {
           <View style={styles.logoBox}>
             <Text style={styles.logoLetter}>U</Text>
           </View>
-          <Text style={styles.appName}>Ultra DéTour</Text>
-          <Text style={styles.tagline}>Rejoindre votre équipe</Text>
+          <Text style={styles.appName}>Ultra DeTour</Text>
+          <Text style={styles.tagline}>Connexion equipe</Text>
         </View>
 
         {/* Formulaire */}
         <View style={styles.card}>
-          <Field label="Code équipe (8 caractères)">
+          <Field label="Code equipe (8 caracteres)">
             <TextInput
               style={[styles.input, styles.codeInput]}
-              value={form.code_acces}
-              onChangeText={(t) => update('code_acces')(t.toUpperCase())}
+              value={code}
+              onChangeText={(t) => setCode(t.toUpperCase())}
               placeholder="ABCD1234"
               placeholderTextColor="#374151"
               maxLength={8}
@@ -86,43 +73,18 @@ export default function LoginScreen() {
             />
           </Field>
 
-          <View style={styles.row}>
-            <View style={styles.halfField}>
-              <Field label="Prénom">
-                <TextInput
-                  style={styles.input}
-                  value={form.prenom}
-                  onChangeText={update('prenom')}
-                  placeholder="Jean"
-                  placeholderTextColor="#374151"
-                  autoCapitalize="words"
-                />
-              </Field>
-            </View>
-            <View style={styles.halfField}>
-              <Field label="Nom">
-                <TextInput
-                  style={styles.input}
-                  value={form.nom}
-                  onChangeText={update('nom')}
-                  placeholder="Dupont"
-                  placeholderTextColor="#374151"
-                  autoCapitalize="words"
-                />
-              </Field>
-            </View>
-          </View>
-
-          <Field label="Email">
+          <Field label="Votre email">
             <TextInput
               style={styles.input}
-              value={form.email}
-              onChangeText={update('email')}
+              value={email}
+              onChangeText={setEmail}
               placeholder="jean@email.com"
               placeholderTextColor="#374151"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={handleJoin}
             />
           </Field>
 
@@ -135,18 +97,14 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.buttonText}>Rejoindre l'équipe →</Text>
+              <Text style={styles.buttonText}>Se connecter</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <Text style={styles.hint}>
-          Le code équipe vous a été communiqué par le capitaine ou l'organisateur.
+          Le code et votre email vous ont ete communiques par l'organisateur.
         </Text>
-
-        <TouchableOpacity onPress={() => router.push('/(auth)/inscription')} activeOpacity={0.7}>
-          <Text style={styles.inscriptionLink}>Pas encore inscrit ? Créer une équipe →</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -187,8 +145,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1e293b',
   },
-  row: { flexDirection: 'row', gap: 10 },
-  halfField: { flex: 1 },
   input: {
     backgroundColor: '#1e293b',
     borderWidth: 1,
@@ -215,5 +171,4 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: 'white', fontWeight: '700', fontSize: 16 },
   hint: { color: '#374151', fontSize: 12, textAlign: 'center', marginTop: 16, lineHeight: 18 },
-  inscriptionLink: { color: '#3b82f6', fontSize: 14, textAlign: 'center', marginTop: 12, fontWeight: '500' },
 });

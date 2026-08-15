@@ -3,8 +3,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type RoleUser = 'SUPER_ADMIN' | 'ORGANISATEUR' | 'QG';
-export type RoleParticipant = 'CAPITAINE' | 'MEMBRE';
-
 export interface UserTokenPayload {
   type: 'user';
   userId: string;

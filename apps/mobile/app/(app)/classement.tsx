@@ -138,23 +138,26 @@ export default function ClassementScreen() {
     if (!editionId) return;
     const [data, edition] = await Promise.all([
       apiFetch<ClassementEntry[]>(`/editions/${editionId}/classement`),
-      apiFetch<{ gel_classement: string }>(`/editions/${editionId}`),
+      apiFetch<{ gel_actif: boolean }>(`/editions/${editionId}`),
     ]);
-    console.log('[Classement] données reçues:', JSON.stringify(data, null, 2));
     setClassement(data);
-    setGelActif(new Date() >= new Date(edition.gel_classement));
+    setGelActif(edition.gel_actif);
   }, [editionId]);
 
   useEffect(() => {
     fetchClassement().catch(console.error).finally(() => setLoading(false));
   }, [fetchClassement]);
 
-  // Mise à jour temps réel — rechargement silencieux à chaque validation approuvée
+  // Mise à jour temps réel
   useEffect(() => {
     if (!socket) return;
     const handler = () => fetchClassement().catch(console.error);
     socket.on('validation:approved', handler);
-    return () => { socket.off('validation:approved', handler); };
+    socket.on('gel:deactivated', handler);
+    return () => {
+      socket.off('validation:approved', handler);
+      socket.off('gel:deactivated', handler);
+    };
   }, [socket, fetchClassement]);
 
   async function onRefresh() {

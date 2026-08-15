@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { apiFetch, type PendingValidation, type ConfigEdition, type CheckpointAdmin } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import ValidationCard from '@/components/ValidationCard';
-import { Bell, MapPin, Loader2, X, Timer } from 'lucide-react';
+import { Bell, MapPin, Loader2, X, Timer, Lock, Unlock } from 'lucide-react';
 
 export default function QGPage({ params }: { params: { id: string } }) {
   const [validations, setValidations] = useState<PendingValidation[]>([]);
@@ -22,6 +22,10 @@ export default function QGPage({ params }: { params: { id: string } }) {
   const [countdown, setCountdown] = useState('');
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Gel du classement
+  const [gelActif, setGelActif] = useState(false);
+  const [degelLoading, setDegelLoading] = useState(false);
+
   // Modal création éphémère
   const [ephemereModal, setEphemereModal] = useState(false);
   const [ephemerePoints, setEphemerePoints] = useState('10');
@@ -29,19 +33,21 @@ export default function QGPage({ params }: { params: { id: string } }) {
   const [ephemereCreating, setEphemereCreating] = useState(false);
   const [ephemereError, setEphemereError] = useState('');
 
-  // Charger validations + config
+  // Charger validations + config + état gel
   useEffect(() => {
     Promise.all([
       apiFetch<PendingValidation[]>(`/validations/pending?editionId=${params.id}`),
       apiFetch<ConfigEdition>(`/editions/${params.id}/config`),
+      apiFetch<{ gel_actif: boolean }>(`/editions/${params.id}`),
     ])
-      .then(([v, cfg]) => {
+      .then(([v, cfg, edition]) => {
         setValidations(v);
         setEphemereConfig({
           ephemere_qg_duree_minutes: cfg.ephemere_qg_duree_minutes,
           ephemere_qg_points_defaut: cfg.ephemere_qg_points_defaut,
         });
         setEphemerePoints(String(cfg.ephemere_qg_points_defaut));
+        setGelActif(edition.gel_actif);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -150,6 +156,19 @@ export default function QGPage({ params }: { params: { id: string } }) {
     }
   }, [params.id, activeEphemere]);
 
+  const handleDegel = useCallback(async () => {
+    if (!confirm('Révéler les vrais scores à tous les participants ? Cette action est irréversible pendant la cérémonie.')) return;
+    setDegelLoading(true);
+    try {
+      await apiFetch(`/editions/${params.id}/degel`, { method: 'PATCH' });
+      setGelActif(false);
+    } catch (e: unknown) {
+      alert((e as Error).message);
+    } finally {
+      setDegelLoading(false);
+    }
+  }, [params.id]);
+
   const handleReject = useCallback(async (id: string, comment: string) => {
     await apiFetch(`/validations/${id}`, {
       method: 'PATCH',
@@ -212,6 +231,25 @@ export default function QGPage({ params }: { params: { id: string } }) {
           >
             <X className="w-3.5 h-3.5" />
             Désactiver
+          </button>
+        </div>
+      )}
+
+      {/* Bandeau gel du classement */}
+      {gelActif && (
+        <div className="flex items-center justify-between bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm text-yellow-300 font-medium">Classement gelé</span>
+            <span className="text-xs text-yellow-500">Les participants voient le snapshot figé</span>
+          </div>
+          <button
+            onClick={handleDegel}
+            disabled={degelLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 hover:bg-yellow-600/30 disabled:opacity-50 transition-colors"
+          >
+            {degelLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlock className="w-3.5 h-3.5" />}
+            Révéler les scores
           </button>
         </div>
       )}

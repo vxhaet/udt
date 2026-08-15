@@ -85,6 +85,8 @@ model Edition {
   devoilement_checkpoints DateTime      // J-48h: révèle les CPs (sans points)
   devoilement_points      DateTime      // J-24h: révèle les points des CPs
   gel_classement          DateTime      // T-1h : fige l'affichage participants
+  gel_actif               Boolean       @default(false)
+  classement_gele         Json?
   prix_equipe             Int           @default(0) // en centimes (0 = gratuit)
   slug                    String?       @unique     // ex: "udt-2026", utilisé dans les URLs
   nb_participants_par_equipe Int        @default(4)

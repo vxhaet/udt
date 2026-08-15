@@ -4,6 +4,7 @@ import { CreateEditionSchema, UpdateEditionSchema } from '@udt/shared';
 import type { ClassementEntry } from '@udt/shared';
 import { requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
+import { deactivateGel } from '../services/devoilement';
 
 export const editionsRouter: Router = Router();
 
@@ -152,6 +153,12 @@ editionsRouter.get('/:id/classement', optionalAuth(), async (req, res, next) => 
     const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
     if (!edition) throw new AppError(404, 'Édition introuvable');
 
+    // Gel actif + snapshot présent → renvoyer le snapshot (sauf pour les admins)
+    const isAdmin = !!req.user;
+    if (!isAdmin && edition.gel_actif && edition.classement_gele) {
+      return res.json(edition.classement_gele);
+    }
+
     const equipes = await prisma.equipe.findMany({
       where: {
         edition_id: req.params.id,
@@ -266,6 +273,19 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
       checkpoints,
       validations,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /editions/:id/degel — Désactive le gel et révèle les vrais scores
+editionsRouter.patch('/:id/degel', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
+  try {
+    const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
+    if (!edition) throw new AppError(404, 'Édition introuvable');
+    if (!edition.gel_actif) throw new AppError(400, 'Le classement n\'est pas gelé');
+    await deactivateGel(req.params.id);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
@@ -425,13 +445,14 @@ editionsRouter.post(
       });
       if (!source) throw new AppError(404, 'Édition introuvable');
 
-      const { id, created_at, updated_at, statut, checkpoints, ...editionData } = source;
+      const { id, created_at, updated_at, statut, checkpoints, classement_gele: _cg, ...editionData } = source;
 
       const newEdition = await prisma.edition.create({
         data: {
           ...editionData,
           nom: `${source.nom} (copie)`,
           statut: 'BROUILLON',
+          gel_actif: false,
           checkpoints: {
             create: checkpoints.map(
               ({ id: _id, edition_id: _eid, created_at: _ca, updated_at: _ua, ...cp }) => cp,

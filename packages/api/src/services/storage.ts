@@ -1,30 +1,39 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-// R2_ENDPOINT peut contenir le nom du bucket en suffixe (ex: .../udt-photos) — on le retire
-// car le bucket est déjà spécifié via le paramètre Bucket du PutObjectCommand.
-const rawEndpoint = process.env.R2_ENDPOINT!;
-const bucket = process.env.R2_BUCKET ?? 'udt-photos';
-const cleanEndpoint = rawEndpoint.replace(new RegExp(`/${bucket}$`), '');
+let s3: S3Client | null = null;
+let BUCKET = '';
+let PUBLIC_URL = '';
 
-const s3 = new S3Client({
-  region: 'auto',
-  endpoint: cleanEndpoint,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-  forcePathStyle: true,
-});
+function getClient(): S3Client {
+  if (s3) return s3;
 
-const BUCKET = process.env.R2_BUCKET ?? 'udt-photos';
-const PUBLIC_URL = process.env.R2_PUBLIC_URL!;
+  const rawEndpoint = process.env.R2_ENDPOINT;
+  if (!rawEndpoint) throw new Error('R2_ENDPOINT not configured');
+
+  BUCKET = process.env.R2_BUCKET ?? 'udt-photos';
+  PUBLIC_URL = process.env.R2_PUBLIC_URL ?? '';
+  const cleanEndpoint = rawEndpoint.replace(new RegExp(`/${BUCKET}$`), '');
+
+  s3 = new S3Client({
+    region: 'auto',
+    endpoint: cleanEndpoint,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+    forcePathStyle: true,
+  });
+
+  return s3;
+}
 
 export async function uploadToR2(
   key: string,
   body: Buffer,
   contentType: string,
 ): Promise<string> {
-  await s3.send(
+  const client = getClient();
+  await client.send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,

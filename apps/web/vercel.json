@@ -1,0 +1,5 @@
+{
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @udt/shared build && pnpm --filter @udt/web build",
+  "framework": "nextjs"
+}

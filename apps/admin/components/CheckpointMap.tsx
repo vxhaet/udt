@@ -90,23 +90,23 @@ function makePendingIcon() {
 const TYPE_COLORS: Record<string, string> = {
   DEPART: '#22c55e',
   ARRIVEE: '#ef4444',
-  EPHEMERE_QG: '#f97316',
+  EPHEMERE_QG: '#f15bb5',
 };
 
 function pointsColor(points: number): string {
-  if (points >= 50) return '#7c3aed';
-  if (points >= 40) return '#f97316';
-  if (points >= 30) return '#eab308';
-  if (points >= 20) return '#06b6d4';
-  return '#60a5fa';
+  if (points <= 1) return '#fbbf24';
+  if (points === 2) return '#f97316';
+  if (points === 3) return '#f15bb5';
+  if (points === 4) return '#a855f7';
+  return '#7c3aed';
 }
 
 const POINTS_LEGEND = [
-  { label: '10 pts', color: '#60a5fa' },
-  { label: '20 pts', color: '#06b6d4' },
-  { label: '30 pts', color: '#eab308' },
-  { label: '40 pts', color: '#f97316' },
-  { label: '50 pts', color: '#7c3aed' },
+  { label: '1 pt', color: '#fbbf24' },
+  { label: '2 pts', color: '#f97316' },
+  { label: '3 pts', color: '#f15bb5' },
+  { label: '4 pts', color: '#a855f7' },
+  { label: '5+ pts', color: '#7c3aed' },
 ] as const;
 
 // ── Label temps restant pour EPHEMERE_QG ──────────────────────────────────────
@@ -207,7 +207,7 @@ export default function CheckpointMap({ checkpoints, onMapClick, pendingMarker }
           cp.type === 'DEPART' ? 'D'
           : cp.type === 'ARRIVEE' ? 'A'
           : cp.type === 'EPHEMERE_QG' ? ephemereLabel(cp.expires_at, now)
-          : String(cp.ordre_affichage ?? idx + 1);
+          : '';
         const pulse = cp.actif && cp.type === 'EPHEMERE_QG';
         return [{ cp, pos, color, label, pulse }];
       }),

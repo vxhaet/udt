@@ -35,7 +35,7 @@ const MEDAL_COLORS = ['#fbbf24', '#d1d5db', '#b45309'];
 const MEDAL_BG = ['rgba(251,191,36,0.12)', 'rgba(209,213,219,0.08)', 'rgba(180,83,9,0.12)'];
 
 const STATUT_LABEL: Record<string, { label: string; color: string }> = {
-  EN_COURSE:    { label: 'En course', color: '#3b82f6' },
+  EN_COURSE:    { label: 'En course', color: '#e8556d' },
   ARRIVEE:      { label: 'Arrivée',   color: '#22c55e' },
   CONFIRMEE:    { label: 'Confirmée', color: '#f59e0b' },
   DISQUALIFIEE: { label: 'DQ',        color: '#ef4444' },
@@ -243,7 +243,7 @@ export default function ClassementScreen() {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
         <View style={styles.centered}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#e8556d" size="large" />
         </View>
       </SafeAreaView>
     );
@@ -334,7 +334,7 @@ export default function ClassementScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e8556d" />
           }
           ListHeaderComponent={
             <>
@@ -362,7 +362,7 @@ export default function ClassementScreen() {
             <View style={detailStyles.handle} />
             {detailLoading ? (
               <View style={detailStyles.centered}>
-                <ActivityIndicator color="#3b82f6" size="large" />
+                <ActivityIndicator color="#e8556d" size="large" />
               </View>
             ) : detailData ? (
               <>
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   teamName: { color: '#e2e8f0', fontSize: 15, fontWeight: '500', flexShrink: 1 },
   teamNameMe: { color: 'white', fontWeight: '700' },
-  meBadge: { backgroundColor: '#1d4ed8', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  meBadge: { backgroundColor: '#e8556d', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   meBadgeText: { color: 'white', fontSize: 9, fontWeight: '700' },
   teamMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   metaText: { color: '#64748b', fontSize: 12 },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1, borderColor: '#1e293b',
     backgroundColor: '#0f172a',
   },
-  filterBtnActive: { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
+  filterBtnActive: { backgroundColor: '#e8556d', borderColor: '#e8556d' },
   filterBtnText: { color: '#64748b', fontSize: 13, fontWeight: '500' },
   filterBtnTextActive: { color: 'white' },
   lastCp: { color: '#475569', fontSize: 11, marginTop: 2 },

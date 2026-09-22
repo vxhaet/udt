@@ -63,7 +63,7 @@ export default function AlbumScreen() {
     return (
       <SafeAreaView style={s.root} edges={['top']}>
         <View style={s.centered}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#e8556d" size="large" />
         </View>
       </SafeAreaView>
     );
@@ -72,7 +72,7 @@ export default function AlbumScreen() {
   return (
     <SafeAreaView style={s.root} edges={['top']}>
       <View style={s.header}>
-        <Ionicons name="images-outline" size={20} color="#3b82f6" />
+        <Ionicons name="images-outline" size={20} color="#e8556d" />
         <Text style={s.title}>Album</Text>
         <Text style={s.count}>{photos.length} photo{photos.length > 1 ? 's' : ''}</Text>
       </View>
@@ -89,7 +89,7 @@ export default function AlbumScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={s.grid}
           columnWrapperStyle={s.gridRow}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#e8556d" />}
           renderItem={({ item, index }) => (
             <TouchableOpacity
               style={s.thumb}

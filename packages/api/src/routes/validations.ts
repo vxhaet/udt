@@ -6,7 +6,7 @@ import { AppError } from '../middleware/error';
 import { validateCheckpointPosition } from '../services/validation';
 import { updateTeamScore, checkItineraireCompletion } from '../services/scoring';
 import { evaluateRules } from '../services/rules';
-import { emitToEdition, emitToEquipe, emitToAdmins } from '../ws';
+import { emitToEdition, emitToEquipe, emitToAdmins, emitToAll } from '../ws';
 import { redis, keys } from '../config/redis';
 
 export const validationsRouter: Router = Router();
@@ -16,6 +16,17 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
   try {
     const body = CreateValidationSchema.parse(req.body);
     const { participantId, equipeId, editionId } = req.participant!;
+
+    // Vérifier que l'édition est en cours
+    const edition = await prisma.edition.findUnique({ where: { id: editionId }, select: { statut: true, date_course: true, duree_minutes: true } });
+    if (!edition || edition.statut !== 'EN_COURS') {
+      throw new AppError(400, 'L\'édition n\'est pas en cours');
+    }
+    // Vérifier que le temps n'est pas écoulé
+    const finCourse = new Date(edition.date_course.getTime() + edition.duree_minutes * 60_000);
+    if (new Date() > finCourse) {
+      throw new AppError(400, 'Le temps est écoulé !');
+    }
 
     // Vérifier que l'équipe est en course
     const equipe = await prisma.equipe.findUnique({ where: { id: equipeId } });
@@ -30,6 +41,9 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
     if (!checkpoint) throw new AppError(404, 'Checkpoint introuvable');
     if (checkpoint.edition_id !== editionId) throw new AppError(400, 'Checkpoint hors de l\'édition');
     if (!checkpoint.actif) throw new AppError(400, 'Ce checkpoint n\'est plus disponible');
+    if (checkpoint.expires_at && new Date() > checkpoint.expires_at) {
+      throw new AppError(400, 'Ce checkpoint a expiré');
+    }
 
     // Vérifier les checkpoints bloqués (règle EXCLUSIF_AVEC)
     const isBlocked = await redis.sIsMember(
@@ -103,6 +117,11 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
       // Effacer le checkpoint obligatoire si c'était celui-ci
       if (requiredNext === body.checkpointId) {
         await redis.del(keys.equipeRequiredNext(equipeId));
+      }
+
+      // Si le checkpoint disparait apres passage, notifier tout le monde
+      if (checkpoint.disparait_apres_passage) {
+        emitToAll(editionId, 'checkpoint:taken', { checkpointId: checkpoint.id });
       }
 
       // Évaluer les règles du checkpoint

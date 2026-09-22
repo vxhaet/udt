@@ -111,8 +111,37 @@ export async function updateTeamScore(
     (stravaAgg._sum.points_gagnes ?? 0) +
     (itineraireAgg._sum.points_accordes ?? 0);
 
-  // Distance à vol d'oiseau = somme des distances entre checkpoints successifs
+  // Distance à vol d'oiseau = départ → CP1 → CP2 → ... → CPn
   let distance = 0;
+
+  // Inclure la distance depuis le point de départ
+  const equipe = await prisma.equipe.findUnique({
+    where: { id: equipeId },
+    select: { edition_id: true, format_course_id: true },
+  });
+  if (equipe && validations.length > 0) {
+    // Chercher le checkpoint DEPART de l'équipe (par format ou global)
+    const departCp = await prisma.checkpoint.findFirst({
+      where: {
+        edition_id: equipe.edition_id,
+        type: 'DEPART',
+        actif: true,
+        ...(equipe.format_course_id
+          ? { OR: [{ tous_formats: true }, { formats: { some: { id: equipe.format_course_id } } }] }
+          : {}),
+      },
+      select: { latitude: true, longitude: true },
+    });
+    if (departCp) {
+      distance += haversineKm(
+        departCp.latitude,
+        departCp.longitude,
+        validations[0].checkpoint.latitude,
+        validations[0].checkpoint.longitude,
+      );
+    }
+  }
+
   for (let i = 1; i < validations.length; i++) {
     distance += haversineKm(
       validations[i - 1].checkpoint.latitude,

@@ -2,21 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, ChevronRight, Users, MapPin, X, Link2, Pencil } from 'lucide-react';
+import { Plus, ChevronRight, Users, MapPin, X, Link2, Pencil, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { apiFetch, type Edition } from '@/lib/api';
 
 const STATUT: Record<string, { label: string; color: string }> = {
-  BROUILLON:   { label: 'Brouillon',    color: 'bg-gray-500/20 text-gray-400' },
   INSCRIPTION: { label: 'Inscriptions', color: 'bg-blue-500/20 text-blue-400' },
-  CONFIRMEE:   { label: 'Confirmée',   color: 'bg-yellow-500/20 text-yellow-400' },
   EN_COURS:    { label: 'En cours',    color: 'bg-green-500/20 text-green-400 animate-pulse' },
-  TERMINEE:    { label: 'Terminée',    color: 'bg-purple-500/20 text-purple-400' },
-  ARCHIVE:     { label: 'Archivée',    color: 'bg-gray-500/20 text-gray-500' },
+  TERMINE:     { label: 'Terminee',    color: 'bg-purple-500/20 text-purple-400' },
+  ARCHIVE:     { label: 'Archivee',    color: 'bg-gray-500/20 text-gray-500' },
 };
 
+function computeStatut(dateCourse: string, dureeMinutes: number): string {
+  const now = new Date();
+  const start = new Date(dateCourse);
+  const fin = new Date(start.getTime() + dureeMinutes * 60_000);
+  if (now < start) return 'INSCRIPTION';
+  if (now >= fin) return 'TERMINE';
+  return 'EN_COURS';
+}
+
 const EMPTY_FORM = {
-  nom: '', slug: '', description: '', reglement: '', statut: 'BROUILLON',
+  nom: '', slug: '', description: '', reglement: '',
   nb_participants_par_equipe: 4, solo_autorise: false,
   date_course: '', duree_minutes: 360, nb_equipes_max: 20, prix_equipe: 0,
   devoilement_depart: '', devoilement_checkpoints: '',
@@ -37,7 +44,6 @@ function editionToForm(ed: Edition) {
     slug: ed.slug ?? '',
     description: ed.description ?? '',
     reglement: ed.reglement ?? '',
-    statut: ed.statut ?? 'BROUILLON',
     nb_participants_par_equipe: ed.nb_participants_par_equipe ?? 4,
     solo_autorise: ed.solo_autorise ?? false,
     date_course: toDatetimeLocal(ed.date_course),
@@ -127,7 +133,6 @@ export default function EditionsPage() {
     try {
       const payload = {
         ...form,
-        statut: editingId ? form.statut : undefined,
         slug: form.slug.trim() || undefined,
         reglement: form.reglement.trim() || undefined,
         duree_minutes: Number(form.duree_minutes),
@@ -226,7 +231,8 @@ export default function EditionsPage() {
       ) : (
         <div className="grid gap-3">
           {editions.map((ed) => {
-            const s = STATUT[ed.statut] ?? STATUT.BROUILLON;
+            const computedStatut = ed.statut === 'ARCHIVE' ? 'ARCHIVE' : computeStatut(ed.date_course, ed.duree_minutes);
+            const s = STATUT[computedStatut] ?? STATUT.INSCRIPTION;
             return (
               <div key={ed.id} className="flex items-center gap-2 bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl p-4 transition-colors group">
                 <Link
@@ -279,6 +285,22 @@ export default function EditionsPage() {
                 >
                   <Link2 className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!confirm(`Supprimer l'édition "${ed.nom}" ? Cette action est irréversible.\n\nToutes les équipes, checkpoints et validations seront supprimés.`)) return;
+                    try {
+                      await apiFetch(`/editions/${ed.id}`, { method: 'DELETE' });
+                      setEditions((prev) => prev.filter((x) => x.id !== ed.id));
+                    } catch (err) {
+                      alert((err as Error).message);
+                    }
+                  }}
+                  title="Supprimer l'édition"
+                  className="shrink-0 p-2 text-gray-500 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             );
           })}
@@ -310,15 +332,6 @@ export default function EditionsPage() {
               <Field label="Slug URL (ex : udt-2026)">
                 <input name="slug" value={form.slug} onChange={handleChange} className={input} placeholder="udt-2026" pattern="[a-z0-9-]+" />
               </Field>
-              {editingId && (
-                <Field label="Statut">
-                  <select name="statut" value={form.statut} onChange={handleChange} className={input}>
-                    {Object.entries(STATUT).map(([key, { label }]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </Field>
-              )}
               <Field label="Description">
                 <textarea name="description" value={form.description} onChange={handleChange} rows={2} className={input} placeholder="Description de l'édition…" />
               </Field>

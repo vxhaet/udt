@@ -5,6 +5,8 @@ import type { ClassementEntry } from '@udt/shared';
 import { requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 import { deactivateGel } from '../services/devoilement';
+import { syncEditionStatut } from '../services/statut';
+import { resetNotified } from '../jobs/devoilement';
 
 export const editionsRouter: Router = Router();
 
@@ -13,7 +15,10 @@ editionsRouter.post('/', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async (req,
   try {
     const body = CreateEditionSchema.parse(req.body);
     const edition = await prisma.edition.create({ data: body as any });
-    res.status(201).json(edition);
+    // Calculer le statut initial
+    await syncEditionStatut(edition.id, edition.date_course, edition.duree_minutes);
+    const updated = await prisma.edition.findUnique({ where: { id: edition.id } });
+    res.status(201).json(updated);
   } catch (err) {
     next(err);
   }
@@ -140,11 +145,95 @@ editionsRouter.patch('/:id', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async (
     const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
     if (!edition) throw new AppError(404, 'Édition introuvable');
 
+    const data: Record<string, unknown> = { ...body };
+    const now = new Date();
+
+    // Ignorer le statut envoyé par le client — il est calculé automatiquement
+    delete data.statut;
+
+    // Si gel_classement est repoussé dans le futur, désactiver le gel
+    if (body.gel_classement) {
+      const newGel = new Date(body.gel_classement);
+      if (newGel > now && edition.gel_actif) {
+        data.gel_actif = false;
+        data.classement_gele = null;
+      }
+    }
+
     const updated = await prisma.edition.update({
       where: { id: req.params.id },
-      data: body as any,
+      data: data as any,
     });
-    res.json(updated);
+
+    // Reset le cache de notifications pour re-evaluer les phases
+    resetNotified(req.params.id);
+
+    // Recalculer le statut à partir de date_course + duree_minutes
+    const dateCourse = body.date_course ? new Date(body.date_course) : edition.date_course;
+    const duree = body.duree_minutes ?? edition.duree_minutes;
+    const newStatut = await syncEditionStatut(req.params.id, dateCourse, duree);
+
+    res.json({ ...updated, statut: newStatut });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /editions/:id
+editionsRouter.delete('/:id', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async (req, res, next) => {
+  try {
+    const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
+    if (!edition) throw new AppError(404, 'Édition introuvable');
+
+    // Supprimer en cascade : validations, participants, equipes, checkpoints, config, etc.
+    await prisma.validation.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
+    await prisma.itineraireComplete.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
+    await prisma.performanceStrava.deleteMany({ where: { participant: { equipe: { edition_id: req.params.id } } } });
+    await prisma.participant.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
+    await prisma.equipe.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.regleCheckpoint.deleteMany({ where: { checkpoint: { edition_id: req.params.id } } });
+    await prisma.checkpoint.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.segmentStrava.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.itineraireThematique.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.configEdition.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.edition.delete({ where: { id: req.params.id } });
+
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /editions/:id/equipes — Liste des equipes (admin)
+editionsRouter.get('/:id/equipes', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
+  try {
+    const equipes = await prisma.equipe.findMany({
+      where: { edition_id: req.params.id },
+      include: {
+        participants: { select: { id: true, nom: true, prenom: true, email: true } },
+        format_course: { select: { id: true, nom: true, duree_minutes: true } },
+      },
+      orderBy: { created_at: 'asc' },
+    });
+    res.json(equipes);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /editions/:id/equipes/:equipeId — Supprimer une equipe (admin)
+editionsRouter.delete('/:id/equipes/:equipeId', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async (req, res, next) => {
+  try {
+    const equipe = await prisma.equipe.findUnique({ where: { id: req.params.equipeId } });
+    if (!equipe || equipe.edition_id !== req.params.id) throw new AppError(404, 'Equipe introuvable');
+
+    await prisma.validation.deleteMany({ where: { equipe_id: req.params.equipeId } });
+    await prisma.itineraireComplete.deleteMany({ where: { equipe_id: req.params.equipeId } });
+    await prisma.performanceStrava.deleteMany({ where: { participant: { equipe_id: req.params.equipeId } } });
+    await prisma.participant.deleteMany({ where: { equipe_id: req.params.equipeId } });
+    await prisma.equipe.delete({ where: { id: req.params.equipeId } });
+
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

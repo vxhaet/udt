@@ -17,7 +17,7 @@ async function generateUniqueCode(): Promise<string> {
   return code;
 }
 
-// POST /inscriptions/:editionId — Inscription par l'organisateur (back-office)
+// POST /inscriptions/:editionId — Inscription par l'organisateur uniquement
 inscriptionsRouter.post(
   '/:editionId',
   requireUser('SUPER_ADMIN', 'ORGANISATEUR'),

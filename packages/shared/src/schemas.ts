@@ -95,7 +95,7 @@ export const CreateValidationSchema = z.object({
   checkpointId: z.string().cuid(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  photo_url: z.string().url(),
+  photo_url: z.string().url().optional(),
 });
 
 export const PatchValidationSchema = z.object({

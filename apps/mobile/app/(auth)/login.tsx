@@ -127,10 +127,10 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', marginBottom: 32 },
   logoBox: {
     width: 64, height: 64, borderRadius: 16,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#e8556d',
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 14,
-    shadowColor: '#3b82f6',
+    shadowColor: '#e8556d',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 20,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   button: {
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#e8556d',
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',

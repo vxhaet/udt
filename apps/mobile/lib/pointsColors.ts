@@ -1,10 +1,10 @@
 import type { Checkpoint } from './api';
 
-export const DEPART_COLOR = '#10b981';
+export const DEPART_COLOR = '#f7a51d';
 
 export const POINTS_PALETTE = [
-  '#22c55e', '#eab308', '#3b82f6', '#ef4444', '#8b5cf6',
-  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#a3e635',
+  '#f7a51d', '#f97316', '#e8556d', '#ec4899', '#c244a0',
+  '#a855f7', '#14b8a6', '#ef4444', '#06b6d4', '#22c55e',
 ];
 
 /**

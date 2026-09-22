@@ -9,6 +9,25 @@
   }
 }
 
+/* UDT brand gradient */
+.bg-udt-gradient {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 25%, #f15bb5 55%, #a855f7 100%);
+}
+.text-udt-gradient {
+  background: linear-gradient(135deg, #fbbf24 0%, #f97316 25%, #f15bb5 55%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.border-udt-gradient {
+  border-image: linear-gradient(135deg, #fbbf24, #f97316, #f15bb5, #a855f7) 1;
+}
+
+/* Safe area for bottom nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Leaflet overrides */
 .leaflet-container {
   background: #09090b;
@@ -25,4 +44,10 @@
 }
 .leaflet-tooltip::before {
   display: none;
+}
+
+/* QG ephemere pulse animation */
+@keyframes udt-qg-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(225,29,72,.7); }
+  50% { transform: scale(1.15); box-shadow: 0 0 24px rgba(225,29,72,.9); }
 }

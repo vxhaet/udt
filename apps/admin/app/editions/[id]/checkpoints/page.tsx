@@ -40,7 +40,7 @@ const DEFAULT_FORM: FormData = {
   description: '',
   latitude: '',
   longitude: '',
-  points: '10',
+  points: '1',
   rayon_validation_metres: '50',
   type_validation: 'AUTO',
   disparait_apres_passage: false,
@@ -95,6 +95,7 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
   const [showExcelHelp, setShowExcelHelp] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const kmzInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -267,6 +268,200 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
     e.target.value = '';
   }
 
+  // ── Import KMZ / KML ─────────────────────────────────────────────────────
+
+  interface KmlPoint {
+    nom: string;
+    description: string;
+    lat: number;
+    lng: number;
+    points: number;
+    type: CpType;
+  }
+
+  function parseKml(kmlText: string): KmlPoint[] {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(kmlText, 'text/xml');
+    const results: KmlPoint[] = [];
+
+    // Build a map: Placemark element → parent Folder name
+    const folderNames = new Map<Element, string>();
+    const folders = doc.getElementsByTagName('Folder');
+
+    for (let i = 0; i < folders.length; i++) {
+      const folder = folders[i];
+      // Get the direct child <name> (not nested ones)
+      let folderName = '';
+      for (let c = 0; c < folder.childNodes.length; c++) {
+        const child = folder.childNodes[c];
+        if (child.nodeName === 'name') {
+          folderName = child.textContent?.trim() ?? '';
+          break;
+        }
+      }
+      // Map each direct Placemark child to this folder name
+      for (let c = 0; c < folder.childNodes.length; c++) {
+        const child = folder.childNodes[c];
+        if (child.nodeName === 'Placemark') {
+          folderNames.set(child as Element, folderName);
+        }
+      }
+    }
+
+    const placemarks = doc.getElementsByTagName('Placemark');
+
+    for (let i = 0; i < placemarks.length; i++) {
+      const pm = placemarks[i];
+      const nom = pm.getElementsByTagName('name')[0]?.textContent?.trim() ?? '';
+      const desc = pm.getElementsByTagName('description')[0]?.textContent?.trim() ?? '';
+      const coordsEl = pm.getElementsByTagName('coordinates')[0];
+      if (!coordsEl?.textContent) continue;
+      const parts = coordsEl.textContent.trim().split(',');
+      if (parts.length < 2) continue;
+      const lng = parseFloat(parts[0]);
+      const lat = parseFloat(parts[1]);
+      if (isNaN(lat) || isNaN(lng)) continue;
+
+      // Get folder context
+      const parentFolder = folderNames.get(pm) ?? '';
+      const folderLower = parentFolder.toLowerCase();
+      const nomLower = nom.toLowerCase();
+      const descClean = desc.replace(/<[^>]*>/g, '').trim();
+
+      // Determine type from folder name
+      let cpType: CpType = 'NORMAL';
+      const isStartFinishFolder = folderLower.includes('départ') || folderLower.includes('arrivée')
+        || folderLower.includes('arrivee') || folderLower.includes('start') || folderLower.includes('finish');
+
+      if (isStartFinishFolder) {
+        if (nomLower.includes('arrivée') || nomLower.includes('arrivee') || nomLower.includes('finish')) {
+          cpType = 'ARRIVEE';
+        } else {
+          cpType = 'DEPART';
+        }
+      }
+
+      // Determine points:
+      // 1) From folder name ("Checkpoints 3 points")
+      // 2) From description if it's just a number ("2", "5")
+      // 3) Default to 1
+      let pts = 1;
+      let realDescription = descClean;
+
+      const folderPointsMatch = folderLower.match(/(\d+)\s*point/);
+      if (folderPointsMatch) {
+        pts = parseInt(folderPointsMatch[1], 10);
+      } else if (/^\d+$/.test(descClean)) {
+        // Description is just a number = points value
+        pts = parseInt(descClean, 10);
+        realDescription = '';
+      }
+
+      if (cpType === 'DEPART' || cpType === 'ARRIVEE') pts = 0;
+
+      results.push({
+        nom: nom || 'Checkpoint',
+        description: realDescription,
+        lat,
+        lng,
+        points: pts,
+        type: cpType,
+      });
+    }
+
+    return results;
+  }
+
+  async function handleKmzImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    let kmlText: string;
+
+    if (file.name.toLowerCase().endsWith('.kml')) {
+      kmlText = await file.text();
+    } else {
+      // KMZ = ZIP containing .kml
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(await file.arrayBuffer());
+      const kmlFile = Object.keys(zip.files).find((name) => name.toLowerCase().endsWith('.kml'));
+      if (!kmlFile) {
+        alert('Aucun fichier KML trouvé dans le KMZ.');
+        e.target.value = '';
+        return;
+      }
+      kmlText = await zip.files[kmlFile].async('string');
+    }
+
+    const kmlPoints = parseKml(kmlText);
+    if (kmlPoints.length === 0) {
+      alert('Aucun point trouvé dans le fichier.');
+      e.target.value = '';
+      return;
+    }
+
+    const summary = kmlPoints.reduce((acc, p) => {
+      acc[p.type] = (acc[p.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const summaryText = Object.entries(summary).map(([t, n]) => `${n} ${t}`).join(', ');
+
+    if (!confirm(`${kmlPoints.length} point(s) trouvé(s) (${summaryText}).\nImporter ?`)) {
+      e.target.value = '';
+      return;
+    }
+
+    let imported = 0;
+    const errors: string[] = [];
+
+    for (const pt of kmlPoints) {
+      try {
+        const payload = {
+          nom: pt.nom,
+          description: pt.description || undefined,
+          latitude: pt.lat,
+          longitude: pt.lng,
+          points: pt.points,
+          rayon_validation_metres: 50,
+          type_validation: 'AUTO' as const,
+          disparait_apres_passage: false,
+          type: pt.type,
+          tous_formats: true,
+          format_course_ids: [],
+        };
+        const created = await apiFetch<CheckpointAdmin>(
+          `/editions/${params.id}/checkpoints`,
+          { method: 'POST', body: JSON.stringify(payload) },
+        );
+        setCheckpoints((prev) => [...prev, created]);
+        imported++;
+      } catch (err) {
+        errors.push(`"${pt.nom}": ${err instanceof Error ? err.message : 'erreur inconnue'}`);
+      }
+    }
+
+    if (errors.length) {
+      alert(`${imported} checkpoint(s) importé(s).\n${errors.length} erreur(s) :\n${errors.slice(0, 10).join('\n')}`);
+    } else {
+      alert(`${imported} checkpoint(s) importé(s) avec succès.`);
+    }
+
+    e.target.value = '';
+  }
+
+  async function deleteAllCheckpoints() {
+    if (!confirm(`Supprimer les ${checkpoints.length} checkpoints ? Cette action est irréversible.`)) return;
+    let deleted = 0;
+    for (const cp of checkpoints) {
+      try {
+        await apiFetch(`/editions/${params.id}/checkpoints/${cp.id}`, { method: 'DELETE' });
+        deleted++;
+      } catch { /* ignore */ }
+    }
+    setCheckpoints([]);
+    alert(`${deleted} checkpoint(s) supprimé(s).`);
+  }
+
   // ── Itinéraire CRUD ──────────────────────────────────────────────────────
 
   function startCreateItin() {
@@ -342,6 +537,15 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
           <span className="text-white">{checkpoints.length}</span> checkpoint(s)
         </h2>
         <div className="flex gap-2">
+          {checkpoints.length > 0 && (
+            <button
+              onClick={deleteAllCheckpoints}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Tout supprimer
+            </button>
+          )}
           <button
             onClick={() => setShowExcelHelp((v) => !v)}
             className="flex items-center gap-1 px-2 py-1.5 text-sm rounded-lg text-gray-500 hover:text-gray-300 transition-colors"
@@ -357,6 +561,14 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
             Import Excel
           </button>
           <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelImport} />
+          <button
+            onClick={() => kmzInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Import KMZ/KML
+          </button>
+          <input ref={kmzInputRef} type="file" accept=".kmz,.kml" className="hidden" onChange={handleKmzImport} />
           <button
             onClick={startCreate}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors"
@@ -585,16 +797,15 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
             {/* Points + Rayon */}
             <div>
               <label className="block text-xs text-gray-400 mb-1">Points *</label>
-              <select
+              <input
                 className="w-full rounded-lg bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                type="number"
+                min={0}
+                step={1}
                 required
                 value={form.points}
                 onChange={(e) => setForm({ ...form, points: e.target.value })}
-              >
-                {['10', '20', '30', '40', '50'].map((v) => (
-                  <option key={v} value={v}>{v} pts</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1">Rayon de validation (m)</label>
@@ -707,7 +918,7 @@ export default function CheckpointsPage({ params }: { params: { id: string } }) 
                   </td>
                   <td className="py-2 pr-3 text-right font-mono">
                     <span style={{ color: cp.type === 'NORMAL' ? (
-                      cp.points >= 50 ? '#7c3aed' : cp.points >= 40 ? '#f97316' : cp.points >= 30 ? '#eab308' : cp.points >= 20 ? '#06b6d4' : '#60a5fa'
+                      cp.points >= 5 ? '#7c3aed' : cp.points >= 4 ? '#a855f7' : cp.points >= 3 ? '#f15bb5' : cp.points >= 2 ? '#f97316' : '#fbbf24'
                     ) : undefined }} className={cp.type !== 'NORMAL' ? 'text-blue-400' : undefined}>
                       {cp.points}
                     </span>

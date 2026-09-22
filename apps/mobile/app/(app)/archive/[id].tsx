@@ -79,7 +79,7 @@ export default function ArchiveDetailScreen() {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
         <View style={styles.centered}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#e8556d" size="large" />
         </View>
       </SafeAreaView>
     );
@@ -236,9 +236,9 @@ export default function ArchiveDetailScreen() {
           style={styles.webLink}
           onPress={() => Linking.openURL(`${ADMIN_URL}/archive/${id}`)}
         >
-          <Ionicons name="globe-outline" size={16} color="#3b82f6" />
+          <Ionicons name="globe-outline" size={16} color="#e8556d" />
           <Text style={styles.webLinkText}>Voir la page d'archive complète (avec photos)</Text>
-          <Ionicons name="open-outline" size={14} color="#3b82f6" />
+          <Ionicons name="open-outline" size={14} color="#e8556d" />
         </TouchableOpacity>
 
         <View style={{ height: 32 }} />
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(59,130,246,0.08)',
+    backgroundColor: 'rgba(232,85,109,0.08)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(59,130,246,0.2)',
+    borderColor: 'rgba(232,85,109,0.2)',
     padding: 14,
     marginTop: 4,
   },
-  webLinkText: { flex: 1, color: '#3b82f6', fontSize: 13, fontWeight: '500' },
+  webLinkText: { flex: 1, color: '#e8556d', fontSize: 13, fontWeight: '500' },
 });

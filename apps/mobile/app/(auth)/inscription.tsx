@@ -144,7 +144,7 @@ export default function InscriptionScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#3b82f6" />
+        <ActivityIndicator color="#e8556d" />
       </View>
     );
   }
@@ -357,7 +357,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, backgroundColor: '#030712', justifyContent: 'center', alignItems: 'center', padding: 32 },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: 60 },
   header: { alignItems: 'center', marginBottom: 32 },
-  logoBox: { width: 64, height: 64, borderRadius: 16, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  logoBox: { width: 64, height: 64, borderRadius: 16, backgroundColor: '#e8556d', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
   logoLetter: { color: 'white', fontSize: 28, fontWeight: '900' },
   appName: { color: 'white', fontSize: 26, fontWeight: 'bold', letterSpacing: -0.5 },
   tagline: { color: '#6b7280', fontSize: 14, marginTop: 4 },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   halfField: { flex: 1 },
   input: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13, color: 'white', fontSize: 16 },
-  button: { backgroundColor: '#1d4ed8', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 6 },
+  button: { backgroundColor: '#e8556d', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 6 },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: 'white', fontWeight: '700', fontSize: 16 },
   hint: { color: '#374151', fontSize: 13, textAlign: 'center', marginTop: 20 },
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   title: { color: 'white', fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
   formatsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   formatCard: { flex: 1, minWidth: 120, backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  formatCardSelected: { borderColor: '#3b82f6', backgroundColor: '#1e3a5f' },
+  formatCardSelected: { borderColor: '#e8556d', backgroundColor: '#3d1525' },
   formatNom: { color: '#cbd5e1', fontWeight: '700', fontSize: 15 },
   formatDuree: { color: '#64748b', fontSize: 12, marginTop: 2 },
 });

@@ -40,7 +40,7 @@ export default function QGPage({ params }: { params: { id: string } }) {
       apiFetch<ConfigEdition>(`/editions/${params.id}/config`),
       apiFetch<{ gel_actif: boolean }>(`/editions/${params.id}`),
     ])
-      .then(([v, cfg, edition]) => {
+      .then(async ([v, cfg, edition]) => {
         setValidations(v);
         setEphemereConfig({
           ephemere_qg_duree_minutes: cfg.ephemere_qg_duree_minutes,
@@ -48,6 +48,15 @@ export default function QGPage({ params }: { params: { id: string } }) {
         });
         setEphemerePoints(String(cfg.ephemere_qg_points_defaut));
         setGelActif(edition.gel_actif);
+
+        // Charger le QG ephemere actif s'il y en a un
+        try {
+          const cps = await apiFetch<Array<{ id: string; type: string; actif: boolean; expires_at: string | null }>>(`/editions/${params.id}/checkpoints`);
+          const ephemere = cps.find((cp) => cp.type === 'EPHEMERE_QG' && cp.actif && cp.expires_at && new Date(cp.expires_at) > new Date());
+          if (ephemere) {
+            setActiveEphemere({ id: ephemere.id, expiresAt: new Date(ephemere.expires_at!) });
+          }
+        } catch {}
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -95,11 +104,16 @@ export default function QGPage({ params }: { params: { id: string } }) {
       setActiveEphemere((prev) => (prev?.id === data.checkpointId ? null : prev));
     });
 
+    socket.on('checkpoint:taken', (data: { checkpointId: string }) => {
+      setActiveEphemere((prev) => (prev?.id === data.checkpointId ? null : prev));
+    });
+
     return () => {
       socket.off('validation:pending');
       socket.off('validation:approved');
       socket.off('validation:rejected');
       socket.off('checkpoint:expired');
+      socket.off('checkpoint:taken');
     };
   }, [params.id]);
 

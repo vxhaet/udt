@@ -76,7 +76,7 @@ export default function ProfilScreen() {
           </View>
 
           {loading ? (
-            <ActivityIndicator color="#3b82f6" style={{ marginTop: 12 }} />
+            <ActivityIndicator color="#e8556d" style={{ marginTop: 12 }} />
           ) : stravaConnected ? (
             <View style={styles.connectedCard}>
               <Ionicons name="checkmark-circle" size={20} color="#22c55e" />

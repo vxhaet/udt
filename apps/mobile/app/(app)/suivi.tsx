@@ -93,7 +93,7 @@ window.updateSuivi=function(data){
     if(isDepart){color=depColor;}
     else if(isArrivee){color='#ef4444';}
     else if(isEph){color='#f97316';}
-    else{color=pcm[String(cp.points)]||'#3b82f6';}
+    else{color=pcm[String(cp.points)]||'#e8556d';}
     var label;
     if(isDepart){var fn=cp.formats&&cp.formats[0]?cp.formats[0].nom:'D';label=fn;}
     else if(isArrivee){label='A';}
@@ -424,7 +424,7 @@ export default function SuiviScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#e8556d" size="large" />
           <Text style={styles.loadingText}>Chargement du suivi…</Text>
         </View>
       ) : (
@@ -460,7 +460,7 @@ export default function SuiviScreen() {
                           <Ionicons
                             name={on ? 'checkbox' : 'square-outline'}
                             size={18}
-                            color={on ? '#3b82f6' : '#475569'}
+                            color={on ? '#e8556d' : '#475569'}
                           />
                           <Text style={[styles.filterLabel, on && styles.filterLabelActive]}>{f.nom}</Text>
                         </Pressable>
@@ -480,7 +480,7 @@ export default function SuiviScreen() {
                           <Ionicons
                             name={on ? 'checkbox' : 'square-outline'}
                             size={18}
-                            color={on ? '#3b82f6' : '#475569'}
+                            color={on ? '#e8556d' : '#475569'}
                           />
                           <View style={[styles.filterDot, { backgroundColor: t.color }]} />
                           <Text style={[styles.filterLabel, on && styles.filterLabelActive]} numberOfLines={2}>
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#1e293b',
     justifyContent: 'center', alignItems: 'center',
   },
-  filterBtnActive: { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
+  filterBtnActive: { backgroundColor: '#e8556d', borderColor: '#e8556d' },
   gelBanner: {
     backgroundColor: 'rgba(251,191,36,0.08)',
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: 'rgba(251,191,36,0.2)',

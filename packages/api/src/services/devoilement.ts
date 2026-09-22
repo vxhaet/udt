@@ -42,21 +42,6 @@ export async function processPhasePoints(editionId: string): Promise<void> {
 }
 
 /**
- * Passe les équipes CONFIRMEE → EN_COURSE au début de la course.
- * Enregistre aussi l'heure de départ sur chaque équipe.
- */
-export async function startConfirmedTeams(editionId: string): Promise<void> {
-  const now = new Date();
-  const { count } = await prisma.equipe.updateMany({
-    where: { edition_id: editionId, statut: 'CONFIRMEE' },
-    data: { statut: 'EN_COURSE', heure_depart: now },
-  });
-  if (count > 0) {
-    console.log(`[Course] ${editionId}: ${count} équipe(s) passée(s) EN_COURSE`);
-  }
-}
-
-/**
  * Active le gel du classement pour une édition.
  * Prend un snapshot du classement actuel (même structure que GET /classement)
  * et bloque les push WS aux participants.

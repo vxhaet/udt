@@ -14,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 const TYPE_COLOR: Record<string, string> = {
   AUTO: '#22c55e',
   MANUELLE: '#f97316',
-  MIXTE: '#3b82f6',
+  MIXTE: '#e8556d',
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -213,7 +213,7 @@ export default function CheckpointScreen() {
           <Text style={styles.sectionLabel}>Distance</Text>
           {userPos === null ? (
             <View style={styles.row}>
-              <ActivityIndicator size="small" color="#3b82f6" />
+              <ActivityIndicator size="small" color="#e8556d" />
               <Text style={styles.distanceText}>Calcul en cours…</Text>
             </View>
           ) : (
@@ -318,13 +318,13 @@ const styles = StyleSheet.create({
   },
   photoPlaceholderText: { color: '#334155', fontSize: 13 },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: Platform.OS === 'ios' ? 28 : 16, backgroundColor: '#030712', borderTopWidth: 1, borderTopColor: '#0f172a' },
-  validateBtn: { backgroundColor: '#1d4ed8', borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  validateBtn: { backgroundColor: '#e8556d', borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   validateBtnDisabled: { backgroundColor: '#1e293b', opacity: 0.6 },
   validateBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
   successScreen: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 16 },
   successIcon: { marginBottom: 8 },
   successTitle: { color: 'white', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   successSub: { color: '#94a3b8', fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  backBtn: { backgroundColor: '#1d4ed8', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, marginTop: 16 },
+  backBtn: { backgroundColor: '#e8556d', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 32, marginTop: 16 },
   backBtnText: { color: 'white', fontWeight: '700', fontSize: 16 },
 });

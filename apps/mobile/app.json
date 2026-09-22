@@ -6,6 +6,12 @@
     "scheme": "udt",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#030712"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -52,7 +58,7 @@
       [
         "expo-notifications",
         {
-          "color": "#3b82f6",
+          "color": "#e8556d",
           "sounds": []
         }
       ]

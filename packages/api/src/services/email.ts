@@ -7,7 +7,7 @@ function getResend() {
 
 const FROM = process.env.RESEND_FROM ?? 'UDT <onboarding@resend.dev>';
 
-const APP_DOWNLOAD_URL = 'https://apps.apple.com/app/udt';
+const APP_URL = process.env.FRONTEND_URL ?? 'https://udt.app';
 
 function emailLayout(content: string): string {
   return `<!DOCTYPE html>
@@ -48,10 +48,10 @@ function codeBlock(code: string): string {
 </table>`;
 }
 
-function downloadButton(): string {
+function connectButton(): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 <tr><td align="center" style="padding:8px 0 24px">
-  <a href="${APP_DOWNLOAD_URL}" style="display:inline-block;background-color:#e53e3e;color:#ffffff;font-weight:700;font-size:16px;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.5px">Telecharger l'app UDT</a>
+  <a href="${APP_URL}/login" style="display:inline-block;background-color:#e53e3e;color:#ffffff;font-weight:700;font-size:16px;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.5px">Se connecter</a>
 </td></tr>
 </table>`;
 }
@@ -75,11 +75,11 @@ export async function sendCodeToTeam(
 <p style="margin:0 0 20px;font-size:15px;color:#555">Rejoins l'equipe <strong>${equipeNom}</strong> dans l'app UDT.</p>
 <p style="font-size:15px;color:#333;margin:0 0 16px;font-weight:600">Pour te connecter :</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-  <tr><td style="padding:6px 0;font-size:14px;color:#333"><strong style="color:#e53e3e">1.</strong> Telecharge l'app UDT</td></tr>
+  <tr><td style="padding:6px 0;font-size:14px;color:#333"><strong style="color:#e53e3e">1.</strong> Clique sur le bouton ci-dessous</td></tr>
   <tr><td style="padding:6px 0;font-size:14px;color:#333"><strong style="color:#e53e3e">2.</strong> Entre le code ci-dessous + ton email</td></tr>
 </table>
 ${codeBlock(code)}
-${downloadButton()}`;
+${connectButton()}`;
 
   for (const p of participants) {
     await resend.emails.send({

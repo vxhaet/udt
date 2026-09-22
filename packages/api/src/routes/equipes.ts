@@ -57,7 +57,7 @@ equipesRouter.post('/join', async (req, res, next) => {
 // GET /equipes/:id — Detail equipe (participant de l'equipe)
 equipesRouter.get('/:id', requireParticipant(), async (req, res, next) => {
   try {
-    const { equipeId } = req.participant!;
+    const { equipeId, editionId } = req.participant!;
     if (equipeId !== req.params.id) {
       throw new AppError(403, 'Acces non autorise a cette equipe');
     }
@@ -68,9 +68,21 @@ equipesRouter.get('/:id', requireParticipant(), async (req, res, next) => {
         participants: {
           select: { id: true, nom: true, prenom: true, strava_athlete_id: true },
         },
+        format_course: { select: { id: true, nom: true, duree_minutes: true } },
       },
     });
     if (!equipe) throw new AppError(404, 'Equipe introuvable');
+
+    // Masquer le score live si gel actif
+    const edition = await prisma.edition.findUnique({ where: { id: editionId }, select: { gel_actif: true, classement_gele: true } });
+    if (edition?.gel_actif && edition.classement_gele) {
+      const snapshot = edition.classement_gele as Array<{ equipeId: string; scoreTotal: number; distanceVolOiseauKm: number }>;
+      const frozen = snapshot.find((e) => e.equipeId === equipe.id);
+      if (frozen) {
+        (equipe as any).score_total = frozen.scoreTotal;
+        (equipe as any).distance_vol_oiseau_km = frozen.distanceVolOiseauKm;
+      }
+    }
 
     res.json(equipe);
   } catch (err) {
@@ -83,9 +95,18 @@ equipesRouter.get('/:id/validations', optionalAuth(), async (req, res, next) => 
   try {
     const equipe = await prisma.equipe.findUnique({
       where: { id: req.params.id },
-      select: { id: true, nom: true, score_total: true },
+      select: { id: true, nom: true, score_total: true, edition_id: true },
     });
     if (!equipe) throw new AppError(404, 'Equipe introuvable');
+
+    const isAdmin = !!req.user;
+
+    // Check gel
+    const edition = await prisma.edition.findUnique({
+      where: { id: equipe.edition_id },
+      select: { gel_actif: true, classement_gele: true },
+    });
+    const gelActif = !isAdmin && edition?.gel_actif && edition.classement_gele;
 
     const validations = await prisma.validation.findMany({
       where: { equipe_id: req.params.id, statut: 'APPROUVE' },
@@ -99,11 +120,24 @@ equipesRouter.get('/:id/validations', optionalAuth(), async (req, res, next) => 
       orderBy: { validated_at: 'asc' },
     });
 
+    let scoreTotal = equipe.score_total;
+    let filteredValidations = validations;
+
+    if (gelActif) {
+      const snapshot = edition!.classement_gele as Array<{ equipeId: string; scoreTotal: number; nbCheckpoints: number }>;
+      const frozen = snapshot.find((e) => e.equipeId === equipe.id);
+      if (frozen) {
+        scoreTotal = frozen.scoreTotal;
+        // Only show validations up to the frozen count
+        filteredValidations = validations.slice(0, frozen.nbCheckpoints);
+      }
+    }
+
     res.json({
       equipeId: equipe.id,
       nom: equipe.nom,
-      scoreTotal: equipe.score_total,
-      validations: validations.map((v) => ({
+      scoreTotal,
+      validations: filteredValidations.map((v) => ({
         id: v.id,
         checkpointNom: v.checkpoint.nom,
         checkpointPoints: v.checkpoint.points,

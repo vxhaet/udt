@@ -99,7 +99,7 @@ window.updateCheckpoints=function(data){
     else if(isDepart){color=data.departColor||'#10b981';}
     else if(isArrivee){color='#ef4444';}
     else if(isEph){color='#f97316';}
-    else{color=pcm[String(cp.points)]||'#3b82f6';}
+    else{color=pcm[String(cp.points)]||'#e8556d';}
     var label;
     if(isDepart){
       var fn=cp.formats&&cp.formats[0]?cp.formats[0].nom:'D';
@@ -130,7 +130,7 @@ window.updatePosition=function(lat,lng){
   if(_user){_user.setLatLng([lat,lng]);}
   else{
     _user=L.circleMarker([lat,lng],{
-      radius:9,fillColor:'#3b82f6',fillOpacity:1,color:'white',weight:2.5
+      radius:9,fillColor:'#e8556d',fillOpacity:1,color:'white',weight:2.5
     }).addTo(map);
   }
 };
@@ -515,7 +515,7 @@ export default function CarteScreen() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color="#3b82f6" size="large" />
+          <ActivityIndicator color="#e8556d" size="large" />
           <Text style={styles.loadingText}>Chargement de la carte…</Text>
         </View>
       ) : (
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   locateBtn: {
     position: 'absolute', right: 12, bottom: 120,
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#e8556d',
     justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
@@ -797,9 +797,9 @@ const styles = StyleSheet.create({
   validateFab: {
     position: 'absolute', bottom: 24, left: 20, right: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#1d4ed8',
+    backgroundColor: '#e8556d',
     borderRadius: 14, paddingVertical: 15,
-    shadowColor: '#1d4ed8', shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#e8556d', shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5, shadowRadius: 12, elevation: 6,
   },
   validateFabLoading: { opacity: 0.7 },

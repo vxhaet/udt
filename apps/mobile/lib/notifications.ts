@@ -28,7 +28,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       name: 'UDT',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#3b82f6',
+      lightColor: '#e8556d',
     });
   }
 

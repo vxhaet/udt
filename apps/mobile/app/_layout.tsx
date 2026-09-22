@@ -13,7 +13,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const TICKER_COLORS: Record<string, string> = {
   ALERTE: '#f97316',
-  INFO: '#3b82f6',
+  INFO: '#e8556d',
   METEO: '#06b6d4',
 };
 
@@ -131,7 +131,7 @@ function MessageTicker() {
 
   if (!message) return null;
 
-  const bgColor = TICKER_COLORS[message.type] ?? '#3b82f6';
+  const bgColor = TICKER_COLORS[message.type] ?? '#e8556d';
   const mins = remaining !== null ? Math.floor(remaining / 60) : null;
   const secs = remaining !== null ? remaining % 60 : null;
 

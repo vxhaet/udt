@@ -9,9 +9,10 @@ let io: SocketServer;
 type AuthSocket = Socket & { tokenPayload: TokenPayload };
 
 export function initWebSocket(server: HttpServer): SocketServer {
+  const corsOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL, 'http://localhost:3000', 'http://localhost:3002', 'https://soothing-cat-production-7144.up.railway.app'].filter(Boolean) as string[];
   io = new SocketServer(server, {
     cors: {
-      origin: process.env.FRONTEND_URL,
+      origin: corsOrigins,
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -34,20 +35,22 @@ export function initWebSocket(server: HttpServer): SocketServer {
 
   io.on('connection', (socket) => {
     const { tokenPayload } = socket as AuthSocket;
+    console.log(`[WS] Connected: ${tokenPayload.type} (socket ${socket.id})`);
 
     // Rejoindre les rooms d'une édition
     socket.on('join:edition', (editionId: string) => {
       if (typeof editionId !== 'string') return;
 
       if (tokenPayload.type === 'user') {
-        // Admin : reçoit tout, même pendant le gel
         socket.join(`admin:${editionId}`);
         socket.join(`edition:${editionId}`);
+        console.log(`[WS] Admin joined edition:${editionId}`);
       } else if (tokenPayload.type === 'participant') {
         if (tokenPayload.editionId !== editionId) return;
         socket.join(`participant:${editionId}`);
         socket.join(`edition:${editionId}`);
-        socket.join(`equipe:${tokenPayload.equipeId}`);
+        socket.join(`equipe:${(tokenPayload as any).equipeId}`);
+        console.log(`[WS] Participant joined edition:${editionId}`);
       }
     });
 

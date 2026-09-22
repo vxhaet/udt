@@ -4,8 +4,6 @@ import { useSearchParams, useParams } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
 
-const APP_DOWNLOAD_URL = 'https://apps.apple.com/app/udt';
-
 function SuccessContent() {
   const { slug } = useParams<{ slug: string }>();
   const params = useSearchParams();
@@ -53,9 +51,9 @@ function SuccessContent() {
           <p className="text-sm font-bold text-white">Comment rejoindre la course</p>
           <div className="space-y-4">
             {[
-              { step: '1', text: "Telecharge l'app UDT" },
-              { step: '2', text: "Ouvre l'app" },
-              { step: '3', text: 'Entre le code ci-dessus' },
+              { step: '1', text: 'Ouvre le lien de connexion sur ton telephone' },
+              { step: '2', text: 'Entre le code ci-dessus et ton email' },
+              { step: '3', text: 'Tu accedes directement a la carte et aux checkpoints' },
             ].map(({ step, text }) => (
               <div key={step} className="flex items-center gap-4">
                 <span className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-sm font-bold text-orange-400">
@@ -66,17 +64,12 @@ function SuccessContent() {
             ))}
           </div>
 
-          <a
-            href={APP_DOWNLOAD_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full bg-white text-zinc-900 font-bold text-sm py-3.5 rounded-xl hover:bg-zinc-100 transition-colors"
+          <Link
+            href="/login"
+            className="flex items-center justify-center gap-2 w-full bg-orange-600 hover:bg-orange-500 text-white font-bold text-sm py-3.5 rounded-xl transition-colors"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-            </svg>
-            Telecharger sur l&apos;App Store
-          </a>
+            Se connecter maintenant
+          </Link>
         </div>
 
         {/* Rappel partage */}
@@ -85,7 +78,7 @@ function SuccessContent() {
             Partage ce code avec tes coequipiers !
           </p>
           <p className="text-xs text-zinc-500">
-            Chaque membre de l&apos;equipe doit telecharger l&apos;app et entrer ce code pour rejoindre.
+            Chaque membre de l&apos;equipe doit se connecter avec ce code et son email pour rejoindre.
           </p>
         </div>
 

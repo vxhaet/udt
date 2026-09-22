@@ -18,10 +18,19 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://udt-production.up.railway.app"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "vxhaet@gmail.com",
+        "ascAppId": "6804830351",
+        "appleTeamId": "ZWL93MK365"
+      }
+    }
   }
 }

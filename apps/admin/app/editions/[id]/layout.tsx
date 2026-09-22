@@ -5,25 +5,34 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { apiFetch, type Edition } from '@/lib/api';
-import { Bell, Map, Trophy, MessageSquare, MapPin, Settings, Activity, Archive } from 'lucide-react';
+import { Bell, Map, Trophy, MessageSquare, MapPin, Settings, Activity, Archive, Users } from 'lucide-react';
 
 const TABS = [
   { label: 'QG', href: 'qg', icon: Bell },
   { label: 'Carte live', href: 'carte', icon: Map },
   { label: 'Classement', href: 'classement', icon: Trophy },
   { label: 'Messages', href: 'messages', icon: MessageSquare },
+  { label: 'Equipes', href: 'equipes', icon: Users },
   { label: 'Checkpoints', href: 'checkpoints', icon: MapPin },
   { label: 'Strava', href: 'strava', icon: Activity },
   { label: 'Configuration', href: 'config', icon: Settings },
 ];
 
 const STATUT_COLOR: Record<string, string> = {
-  BROUILLON:   'bg-gray-500/20 text-gray-400',
   INSCRIPTION: 'bg-blue-500/20 text-blue-400',
   EN_COURS:    'bg-green-500/20 text-green-400',
   TERMINE:     'bg-purple-500/20 text-purple-400',
   ARCHIVE:     'bg-gray-500/20 text-gray-500',
 };
+
+function computeStatut(dateCourse: string, dureeMinutes: number): string {
+  const now = new Date();
+  const start = new Date(dateCourse);
+  const fin = new Date(start.getTime() + dureeMinutes * 60_000);
+  if (now < start) return 'INSCRIPTION';
+  if (now >= fin) return 'TERMINE';
+  return 'EN_COURS';
+}
 
 export default function EditionLayout({
   children,
@@ -101,11 +110,14 @@ export default function EditionLayout({
             <h1 className="text-lg font-semibold text-white">
               {edition?.nom ?? '…'}
             </h1>
-            {edition && (
-              <span className={clsx('badge', STATUT_COLOR[edition.statut])}>
-                {edition.statut.replace('_', ' ')}
-              </span>
-            )}
+            {edition && (() => {
+              const s = edition.statut === 'ARCHIVE' ? 'ARCHIVE' : computeStatut(edition.date_course, edition.duree_minutes);
+              return (
+                <span className={clsx('badge', STATUT_COLOR[s])}>
+                  {s.replace('_', ' ')}
+                </span>
+              );
+            })()}
           </div>
           {edition && (
             <p className="text-sm text-gray-500 mt-0.5">

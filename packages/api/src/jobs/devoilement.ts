@@ -4,18 +4,14 @@ import {
   processPhaseDepart,
   processPhaseCheckpoints,
   processPhasePoints,
-  startConfirmedTeams,
   activateGel,
 } from '../services/devoilement';
+import { syncEditionStatut } from '../services/statut';
 
-// Ensemble des phases déjà traitées (clé = `${editionId}:${phase}`)
-// Résistant aux redémarrages car on vérifie aussi les timestamps en base
-const processed = new Set<string>();
+// Track WS notifications already sent (to avoid spamming clients every minute)
+// This does NOT block logic — only prevents duplicate WS events
+const notified = new Set<string>();
 
-/**
- * Démarre le job cron qui s'exécute chaque minute pour vérifier
- * si une phase de dévoilement ou le gel doit être activé.
- */
 export function startDevoilementJobs(): void {
   cron.schedule('* * * * *', async () => {
     try {
@@ -25,49 +21,58 @@ export function startDevoilementJobs(): void {
     }
   });
 
+  // Run immediately on startup
+  checkDevoilements().catch(console.error);
+
   console.log('[Jobs] Devoilement cron démarré (fréquence: 1 min)');
+}
+
+export function resetNotified(editionId: string): void {
+  for (const key of notified) {
+    if (key.startsWith(`${editionId}:`)) notified.delete(key);
+  }
 }
 
 async function checkDevoilements(): Promise<void> {
   const now = new Date();
 
   const editions = await prisma.edition.findMany({
-    where: { statut: { in: ['INSCRIPTION', 'EN_COURS'] } },
+    where: { statut: { notIn: ['ARCHIVE'] } },
     select: {
       id: true,
+      statut: true,
       date_course: true,
+      duree_minutes: true,
       devoilement_depart: true,
       devoilement_checkpoints: true,
       devoilement_points: true,
       gel_classement: true,
+      gel_actif: true,
     },
   });
 
   for (const edition of editions) {
     const { id, date_course, devoilement_depart, devoilement_checkpoints, devoilement_points, gel_classement } = edition;
 
-    if (!processed.has(`${id}:course`) && now >= date_course) {
-      processed.add(`${id}:course`);
-      await startConfirmedTeams(id);
-    }
+    // Synchroniser le statut (INSCRIPTION / EN_COURS / TERMINE) + equipes
+    await syncEditionStatut(id, date_course, edition.duree_minutes);
 
-    if (!processed.has(`${id}:depart`) && now >= devoilement_depart) {
-      processed.add(`${id}:depart`);
+    // Devoilement progressif — notify once
+    if (!notified.has(`${id}:depart`) && now >= devoilement_depart) {
+      notified.add(`${id}:depart`);
       await processPhaseDepart(id);
     }
-
-    if (!processed.has(`${id}:checkpoints`) && now >= devoilement_checkpoints) {
-      processed.add(`${id}:checkpoints`);
+    if (!notified.has(`${id}:checkpoints`) && now >= devoilement_checkpoints) {
+      notified.add(`${id}:checkpoints`);
       await processPhaseCheckpoints(id);
     }
-
-    if (!processed.has(`${id}:points`) && now >= devoilement_points) {
-      processed.add(`${id}:points`);
+    if (!notified.has(`${id}:points`) && now >= devoilement_points) {
+      notified.add(`${id}:points`);
       await processPhasePoints(id);
     }
 
-    if (!processed.has(`${id}:gel`) && now >= gel_classement) {
-      processed.add(`${id}:gel`);
+    // Gel du classement — check DB state, not cache
+    if (!edition.gel_actif && now >= gel_classement) {
       await activateGel(id);
     }
   }

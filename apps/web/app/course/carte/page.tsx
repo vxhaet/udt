@@ -340,8 +340,8 @@ export default function CartePage() {
               mapRef.current.setView([nearest.latitude, nearest.longitude], 16);
             }
           }}
-          className="fixed left-1/2 -translate-x-1/2 bg-udt-gradient text-white font-bold text-sm px-6 py-3.5 rounded-2xl shadow-lg flex items-center gap-2 transition-opacity hover:opacity-90"
-          style={{ bottom: 'calc(4rem + 1.5rem)', zIndex: 9998 }}
+          className="fixed left-1/2 -translate-x-1/2 bottom-24 bg-udt-gradient text-white font-bold text-sm px-6 py-3.5 rounded-2xl shadow-lg flex items-center gap-2 transition-opacity hover:opacity-90"
+          style={{ zIndex: 9998 }}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />

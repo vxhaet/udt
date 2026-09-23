@@ -178,7 +178,7 @@ export default function SuiviPage() {
   }
 
   return (
-    <div className="relative" style={{ height: 'calc(100dvh - 8rem)' }}>
+    <div className="relative h-full">
       <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
 
       {loading && (

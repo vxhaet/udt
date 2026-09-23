@@ -281,7 +281,7 @@ export default function CartePage() {
   const isInRange = distanceToCp !== null && selectedCp ? distanceToCp <= selectedCp.rayon_validation_metres : false;
 
   return (
-    <div className="relative" style={{ height: 'calc(100dvh - 8rem)' }}>
+    <div className="relative h-full">
       {/* Map */}
       <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
 

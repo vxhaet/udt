@@ -207,9 +207,9 @@ export default function ClassementPage() {
 
       {/* Team detail modal */}
       {(selectedTeam || detailLoading) && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" onClick={() => { setSelectedTeam(null); setPhotoIdx(null); }}>
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center" style={{ zIndex: 10000 }} onClick={() => { setSelectedTeam(null); setPhotoIdx(null); }}>
           <div
-            className="bg-zinc-900 border-t sm:border border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] overflow-auto"
+            className="bg-zinc-900 border-t sm:border border-zinc-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[70vh] overflow-auto mb-16 sm:mb-0"
             onClick={(e) => e.stopPropagation()}
           >
             {detailLoading ? (

@@ -119,9 +119,14 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
         await redis.del(keys.equipeRequiredNext(equipeId));
       }
 
-      // Si le checkpoint disparait apres passage, notifier tout le monde
+      // Si le checkpoint disparait apres passage, notifier tout le monde + supprimer message actif
       if (checkpoint.disparait_apres_passage) {
         emitToAll(editionId, 'checkpoint:taken', { checkpointId: checkpoint.id });
+        // Supprimer le message QG actif si c'est un ephemere
+        if (checkpoint.type === 'EPHEMERE_QG') {
+          await redis.del(`udt:edition:${editionId}:active_message`);
+          emitToAll(editionId, 'message:dismiss', {});
+        }
       }
 
       // Évaluer les règles du checkpoint
@@ -270,6 +275,10 @@ validationsRouter.post('/admin', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'
     if (checkpoint.disparait_apres_passage) {
       await prisma.checkpoint.update({ where: { id: checkpointId }, data: { actif: false } });
       emitToAll(checkpoint.edition_id, 'checkpoint:taken', { checkpointId });
+      if (checkpoint.type === 'EPHEMERE_QG') {
+        await redis.del(`udt:edition:${checkpoint.edition_id}:active_message`);
+        emitToAll(checkpoint.edition_id, 'message:dismiss', {});
+      }
     }
 
     res.status(201).json(validation);

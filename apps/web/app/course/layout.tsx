@@ -57,7 +57,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
             : 0;
           showQgBanner(
             `QG ephemere actif : ${ephemere.nom}${mins > 0 ? ` (${mins} min)` : ''}`,
-            'ALERTE',
+            'QG',
             ephemere.expires_at,
           );
         }
@@ -114,7 +114,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
           : 0;
         showQgBanner(
           `Nouveau checkpoint : ${name}${mins > 0 ? ` (${mins} min)` : ''}`,
-          'ALERTE',
+          'QG',
           data.checkpoint.expires_at,
         );
       }
@@ -152,11 +152,11 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       {qgMessage && (
         <div
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white ${
-            qgMessage.type === 'ALERTE' ? 'bg-red-600' : qgMessage.type === 'METEO' ? 'bg-blue-600' : 'bg-amber-500'
+            qgMessage.type === 'ALERTE' ? 'bg-red-600' : qgMessage.type === 'METEO' ? 'bg-blue-600' : qgMessage.type === 'QG' ? 'bg-orange-500' : 'bg-amber-500'
           }`}
         >
           <span className="text-lg shrink-0">
-            {qgMessage.type === 'ALERTE' ? '⚠️' : qgMessage.type === 'METEO' ? '⛅' : 'ℹ️'}
+            {qgMessage.type === 'ALERTE' ? '⚠️' : qgMessage.type === 'METEO' ? '⛅' : qgMessage.type === 'QG' ? '📍' : 'ℹ️'}
           </span>
           <span className="flex-1">{qgMessage.contenu}</span>
         </div>

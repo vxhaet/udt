@@ -2,14 +2,41 @@ import { Router } from 'express';
 import { prisma } from '@udt/db';
 import { CreateMessageSchema } from '@udt/shared';
 import type { MessageQG } from '@udt/shared';
-import { requireUser } from '../middleware/auth';
+import { requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
 import { emitToAll } from '../ws';
+import { redis } from '../config/redis';
 import { Expo, type ExpoPushMessage } from 'expo-server-sdk';
 
 const expo = new Expo({ accessToken: process.env.EXPO_ACCESS_TOKEN });
 
 export const messagesRouter: Router = Router();
+
+function activeMessageKey(editionId: string) {
+  return `udt:edition:${editionId}:active_message`;
+}
+
+// GET /editions/:id/messages/active — Dernier message actif
+messagesRouter.get('/:id/messages/active', optionalAuth(), async (req, res, next) => {
+  try {
+    const raw = await redis.get(activeMessageKey(req.params.id));
+    if (!raw) return res.json(null);
+    res.json(JSON.parse(raw));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /editions/:id/messages/active — Arreter la diffusion du message actif
+messagesRouter.delete('/:id/messages/active', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
+  try {
+    await redis.del(activeMessageKey(req.params.id));
+    emitToAll(req.params.id, 'message:dismiss', {});
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // POST /editions/:id/messages
 messagesRouter.post('/:id/messages', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
@@ -28,6 +55,9 @@ messagesRouter.post('/:id/messages', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 
       timestamp: new Date().toISOString(),
       auteurId: req.user!.userId,
     };
+
+    // Stocker le message actif dans Redis (TTL 4h)
+    await redis.set(activeMessageKey(editionId), JSON.stringify(message), { EX: 4 * 3600 });
 
     // Broadcast WebSocket à tous (participants + admins)
     emitToAll(editionId, 'message:qg', message);

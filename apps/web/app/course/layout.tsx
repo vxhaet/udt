@@ -22,23 +22,32 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
   const [qgMessage, setQgMessage] = useState<{ contenu: string; type: string } | null>(null);
   const qgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function showQgBanner(text: string, expiresAt?: string) {
+  function showQgBanner(text: string, type: string, expiresAt?: string) {
     if (qgTimerRef.current) clearTimeout(qgTimerRef.current);
-    setQgMessage({ contenu: text, type: 'ALERTE' });
-    // Auto-dismiss when checkpoint expires or after 60s
-    const dismissMs = expiresAt
-      ? Math.max(new Date(expiresAt).getTime() - Date.now(), 1000)
-      : 60000;
-    qgTimerRef.current = setTimeout(() => setQgMessage(null), dismissMs);
+    setQgMessage({ contenu: text, type });
+    if (expiresAt) {
+      const dismissMs = Math.max(new Date(expiresAt).getTime() - Date.now(), 1000);
+      qgTimerRef.current = setTimeout(() => setQgMessage(null), dismissMs);
+    }
+    // No auto-dismiss for regular messages — user or admin dismisses
   }
 
   useEffect(() => {
     if (!loading && !token) router.replace('/login');
   }, [loading, token, router]);
 
-  // Check for active ephemeral QG on mount + page change
+  // Check for active messages + ephemeral QG on mount + page change
   useEffect(() => {
     if (!payload) return;
+
+    // Check active broadcast message
+    apiFetch<{ contenu: string; type: string } | null>(`/editions/${payload.editionId}/messages/active`)
+      .then((msg) => {
+        if (msg) showQgBanner(msg.contenu, msg.type);
+      })
+      .catch(() => {});
+
+    // Check active ephemeral QG
     apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string }> }>(`/editions/${payload.editionId}/carte`)
       .then((data) => {
         const ephemere = data.checkpoints.find(
@@ -50,6 +59,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
             : 0;
           showQgBanner(
             `QG ephemere actif : ${ephemere.nom}${mins > 0 ? ` (${mins} min)` : ''}`,
+            'ALERTE',
             ephemere.expires_at,
           );
         }
@@ -70,7 +80,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
     socket.on('connect', joinEdition);
 
     function onMessageQg(data: { contenu: string; type: string; expires_at?: string }) {
-      showQgBanner(data.contenu, data.expires_at);
+      showQgBanner(data.contenu, data.type, data.expires_at);
     }
 
     function onCheckpointRevealed(data: { checkpoint?: { nom?: string; type?: string; expires_at?: string } }) {
@@ -81,26 +91,27 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
           : 0;
         showQgBanner(
           `Nouveau checkpoint : ${name}${mins > 0 ? ` (${mins} min)` : ''}`,
+          'ALERTE',
           data.checkpoint.expires_at,
         );
       }
     }
 
-    function onCheckpointTaken(data: { checkpointId: string }) {
-      // QG pris, retirer le bandeau
-      setQgMessage(null);
-    }
+    function onCheckpointTaken() { setQgMessage(null); }
+    function onMessageDismiss() { setQgMessage(null); }
 
     socket.on('message:qg', onMessageQg);
     socket.on('checkpoint:revealed', onCheckpointRevealed);
     socket.on('checkpoint:taken', onCheckpointTaken);
     socket.on('checkpoint:expired', () => setQgMessage(null));
+    socket.on('message:dismiss', onMessageDismiss);
     return () => {
       socket.off('connect', joinEdition);
       socket.off('message:qg', onMessageQg);
       socket.off('checkpoint:revealed', onCheckpointRevealed);
       socket.off('checkpoint:taken', onCheckpointTaken);
       socket.off('checkpoint:expired');
+      socket.off('message:dismiss', onMessageDismiss);
     };
   }, [payload, token]);
 
@@ -117,11 +128,22 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       {/* QG Message Banner */}
       {qgMessage && (
         <div
-          className={`px-4 py-2.5 text-center text-sm font-semibold text-white animate-pulse ${
-            qgMessage.type === 'ALERTE' ? 'bg-red-600' : qgMessage.type === 'METEO' ? 'bg-cyan-600' : 'bg-udt-gradient'
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white ${
+            qgMessage.type === 'ALERTE' ? 'bg-red-600' : qgMessage.type === 'METEO' ? 'bg-blue-600' : 'bg-amber-500'
           }`}
         >
-          {qgMessage.contenu}
+          <span className="text-lg shrink-0">
+            {qgMessage.type === 'ALERTE' ? '⚠️' : qgMessage.type === 'METEO' ? '⛅' : 'ℹ️'}
+          </span>
+          <span className="flex-1">{qgMessage.contenu}</span>
+          <button
+            onClick={() => setQgMessage(null)}
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 

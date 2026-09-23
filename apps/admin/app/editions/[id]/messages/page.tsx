@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import type { MessageQG, TypeMessage } from '@udt/shared';
-import { Send, Info, AlertTriangle, Cloud } from 'lucide-react';
+import { Send, Info, AlertTriangle, Cloud, XCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 const TYPE_CONFIG: Record<TypeMessage, { label: string; icon: React.ElementType; color: string; bg: string }> = {
@@ -19,19 +19,28 @@ export default function MessagesPage({ params }: { params: { id: string } }) {
   const [type, setType] = useState<TypeMessage>('INFO');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [hasActiveMessage, setHasActiveMessage] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
 
-  // Écouter les messages entrants
+  // Check for active message + listen for new ones
   useEffect(() => {
+    apiFetch<MessageQG | null>(`/editions/${params.id}/messages/active`)
+      .then((msg) => setHasActiveMessage(!!msg))
+      .catch(() => {});
+
     const socket = getSocket();
     socket.connect();
     socket.emit('join:edition', params.id);
 
     socket.on('message:qg', (msg: MessageQG) => {
       setMessages((prev) => [msg, ...prev]);
+      setHasActiveMessage(true);
     });
+    socket.on('message:dismiss', () => setHasActiveMessage(false));
 
     return () => {
       socket.off('message:qg');
+      socket.off('message:dismiss');
     };
   }, [params.id]);
 
@@ -112,6 +121,24 @@ export default function MessagesPage({ params }: { params: { id: string } }) {
         </div>
         <p className="text-xs text-gray-600 text-right">{contenu.length}/500</p>
       </form>
+
+      {/* Bouton arreter la diffusion */}
+      {hasActiveMessage && (
+        <button
+          onClick={async () => {
+            setDismissing(true);
+            try {
+              await apiFetch(`/editions/${params.id}/messages/active`, { method: 'DELETE' });
+              setHasActiveMessage(false);
+            } catch {} finally { setDismissing(false); }
+          }}
+          disabled={dismissing}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-sm font-medium transition-colors w-full justify-center"
+        >
+          <XCircle className="w-4 h-4" />
+          {dismissing ? 'Arret...' : 'Arreter la diffusion du message actif'}
+        </button>
+      )}
 
       {/* Historique */}
       <div className="space-y-2">

@@ -22,8 +22,14 @@ export default function MessagesPage({ params }: { params: { id: string } }) {
   const [hasActiveMessage, setHasActiveMessage] = useState(false);
   const [dismissing, setDismissing] = useState(false);
 
-  // Check for active message + listen for new ones
+  // Load history + active state + listen for new ones
   useEffect(() => {
+    // Load message history
+    apiFetch<MessageQG[]>(`/editions/${params.id}/messages`)
+      .then((msgs) => setMessages(msgs))
+      .catch(() => {});
+
+    // Check active message
     apiFetch<MessageQG | null>(`/editions/${params.id}/messages/active`)
       .then((msg) => setHasActiveMessage(!!msg))
       .catch(() => {});
@@ -142,7 +148,7 @@ export default function MessagesPage({ params }: { params: { id: string } }) {
 
       {/* Historique */}
       <div className="space-y-2">
-        <p className="text-xs text-gray-500 uppercase tracking-wider">Historique de session</p>
+        <p className="text-xs text-gray-500 uppercase tracking-wider">Historique</p>
         {messages.length === 0 ? (
           <p className="text-sm text-gray-600 text-center py-8">
             Aucun message envoyé dans cette session

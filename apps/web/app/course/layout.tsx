@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -36,18 +36,16 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
     if (!loading && !token) router.replace('/login');
   }, [loading, token, router]);
 
-  // Check for active messages + ephemeral QG on mount + page change
-  useEffect(() => {
+  // Check for active messages + ephemeral QG
+  const checkActiveMessages = useCallback(() => {
     if (!payload) return;
 
-    // Check active broadcast message
     apiFetch<{ contenu: string; type: string } | null>(`/editions/${payload.editionId}/messages/active`)
       .then((msg) => {
         if (msg) showQgBanner(msg.contenu, msg.type);
       })
       .catch(() => {});
 
-    // Check active ephemeral QG
     apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string }> }>(`/editions/${payload.editionId}/carte`)
       .then((data) => {
         const ephemere = data.checkpoints.find(
@@ -65,7 +63,18 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {});
-  }, [payload, pathname]);
+  }, [payload]);
+
+  // Run on mount, page change, and when app comes back to foreground
+  useEffect(() => {
+    checkActiveMessages();
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') checkActiveMessages();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [checkActiveMessages, pathname]);
 
   useEffect(() => {
     if (!payload || !token) return;

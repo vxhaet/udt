@@ -16,12 +16,27 @@ function activeMessageKey(editionId: string) {
   return `udt:edition:${editionId}:active_message`;
 }
 
+function messageHistoryKey(editionId: string) {
+  return `udt:edition:${editionId}:message_history`;
+}
+
 // GET /editions/:id/messages/active — Dernier message actif
 messagesRouter.get('/:id/messages/active', optionalAuth(), async (req, res, next) => {
   try {
     const raw = await redis.get(activeMessageKey(req.params.id));
     if (!raw) return res.json(null);
     res.json(JSON.parse(raw));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /editions/:id/messages — Historique des messages
+messagesRouter.get('/:id/messages', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
+  try {
+    const raw = await redis.lRange(messageHistoryKey(req.params.id), 0, 49);
+    const messages = raw.map((r) => JSON.parse(r));
+    res.json(messages);
   } catch (err) {
     next(err);
   }
@@ -56,8 +71,10 @@ messagesRouter.post('/:id/messages', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 
       auteurId: req.user!.userId,
     };
 
-    // Stocker le message actif dans Redis (TTL 4h)
+    // Stocker le message actif dans Redis (TTL 4h) + historique
     await redis.set(activeMessageKey(editionId), JSON.stringify(message), { EX: 4 * 3600 });
+    await redis.lPush(messageHistoryKey(editionId), JSON.stringify(message));
+    await redis.lTrim(messageHistoryKey(editionId), 0, 49); // garder les 50 derniers
 
     // Broadcast WebSocket à tous (participants + admins)
     emitToAll(editionId, 'message:qg', message);

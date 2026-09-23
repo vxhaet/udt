@@ -185,17 +185,27 @@ editionsRouter.delete('/:id', requireUser('SUPER_ADMIN', 'ORGANISATEUR'), async 
     const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
     if (!edition) throw new AppError(404, 'Édition introuvable');
 
-    // Supprimer en cascade : validations, participants, equipes, checkpoints, config, etc.
+    // Supprimer en cascade : validations, participants, equipes, checkpoints, config, formats, etc.
     await prisma.validation.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
     await prisma.itineraireComplete.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
     await prisma.performanceStrava.deleteMany({ where: { participant: { equipe: { edition_id: req.params.id } } } });
     await prisma.participant.deleteMany({ where: { equipe: { edition_id: req.params.id } } });
     await prisma.equipe.deleteMany({ where: { edition_id: req.params.id } });
     await prisma.regleCheckpoint.deleteMany({ where: { checkpoint: { edition_id: req.params.id } } });
+    // Deconnecter les relations many-to-many checkpoint↔format avant de supprimer
+    const cps = await prisma.checkpoint.findMany({ where: { edition_id: req.params.id }, select: { id: true } });
+    for (const cp of cps) {
+      await prisma.checkpoint.update({ where: { id: cp.id }, data: { formats: { set: [] } } });
+    }
+    const itins = await prisma.itineraireThematique.findMany({ where: { edition_id: req.params.id }, select: { id: true } });
+    for (const it of itins) {
+      await prisma.itineraireThematique.update({ where: { id: it.id }, data: { checkpoints: { set: [] } } });
+    }
     await prisma.checkpoint.deleteMany({ where: { edition_id: req.params.id } });
     await prisma.segmentStrava.deleteMany({ where: { edition_id: req.params.id } });
     await prisma.itineraireThematique.deleteMany({ where: { edition_id: req.params.id } });
     await prisma.configEdition.deleteMany({ where: { edition_id: req.params.id } });
+    await prisma.formatCourse.deleteMany({ where: { edition_id: req.params.id } });
     await prisma.edition.delete({ where: { id: req.params.id } });
 
     res.status(204).end();

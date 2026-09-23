@@ -145,14 +145,6 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
             {qgMessage.type === 'ALERTE' ? '⚠️' : qgMessage.type === 'METEO' ? '⛅' : 'ℹ️'}
           </span>
           <span className="flex-1">{qgMessage.contenu}</span>
-          <button
-            onClick={() => setQgMessage(null)}
-            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       )}
 

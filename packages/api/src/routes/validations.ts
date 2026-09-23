@@ -225,6 +225,59 @@ validationsRouter.patch('/:id', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG')
   }
 });
 
+// POST /validations/admin — Validation manuelle par un admin
+validationsRouter.post('/admin', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
+  try {
+    const { checkpointId, equipeId } = req.body as { checkpointId: string; equipeId: string };
+    if (!checkpointId || !equipeId) throw new AppError(400, 'checkpointId et equipeId requis');
+
+    const checkpoint = await prisma.checkpoint.findUnique({ where: { id: checkpointId } });
+    if (!checkpoint) throw new AppError(404, 'Checkpoint introuvable');
+
+    const equipe = await prisma.equipe.findUnique({ where: { id: equipeId } });
+    if (!equipe) throw new AppError(404, 'Equipe introuvable');
+
+    // Check not already validated
+    const existing = await prisma.validation.findFirst({
+      where: { equipe_id: equipeId, checkpoint_id: checkpointId, statut: { in: ['APPROUVE', 'EN_ATTENTE'] } },
+    });
+    if (existing) throw new AppError(409, 'Ce checkpoint est deja valide pour cette equipe');
+
+    const validation = await prisma.validation.create({
+      data: {
+        equipe_id: equipeId,
+        checkpoint_id: checkpointId,
+        latitude: checkpoint.latitude,
+        longitude: checkpoint.longitude,
+        statut: 'APPROUVE',
+        points_accordes: checkpoint.points,
+        validateur_id: req.user!.userId,
+      },
+    });
+
+    // Evaluate rules + update score
+    await evaluateRules(checkpointId, equipeId, checkpoint.edition_id);
+    await checkItineraireCompletion(equipeId, checkpoint.edition_id);
+    const { scoreTotal, distance } = await updateTeamScore(equipeId);
+
+    await emitToEdition(checkpoint.edition_id, 'validation:approved', {
+      validation,
+      equipeId,
+      scoreTotal,
+      distanceVolOiseauKm: distance,
+    });
+
+    if (checkpoint.disparait_apres_passage) {
+      await prisma.checkpoint.update({ where: { id: checkpointId }, data: { actif: false } });
+      emitToAll(checkpoint.edition_id, 'checkpoint:taken', { checkpointId });
+    }
+
+    res.status(201).json(validation);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /validations/pending — Liste des validations en attente (QG)
 validationsRouter.get('/pending', requireUser('SUPER_ADMIN', 'ORGANISATEUR', 'QG'), async (req, res, next) => {
   try {

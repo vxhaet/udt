@@ -163,7 +163,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Content */}
-      <main className="flex-1 min-h-0 overflow-auto pb-16">
+      <main className="flex-1 min-h-0 relative pb-16">
         {children}
       </main>
 

@@ -178,7 +178,7 @@ export default function SuiviPage() {
   }
 
   return (
-    <div className="relative h-full">
+    <div className="absolute inset-0">
       <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
 
       {loading && (

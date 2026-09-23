@@ -65,15 +65,29 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, [payload]);
 
-  // Run on mount, page change, and when app comes back to foreground
+  // Run on mount, page change, foreground, focus, and poll every 30s
   useEffect(() => {
     checkActiveMessages();
 
-    function onVisibilityChange() {
+    function onForeground() {
       if (document.visibilityState === 'visible') checkActiveMessages();
     }
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    function onFocus() { checkActiveMessages(); }
+    function onPageShow(e: PageTransitionEvent) { if (e.persisted) checkActiveMessages(); }
+
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+
+    // Poll every 30s as fallback
+    const pollId = setInterval(checkActiveMessages, 30_000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+      clearInterval(pollId);
+    };
   }, [checkActiveMessages, pathname]);
 
   useEffect(() => {

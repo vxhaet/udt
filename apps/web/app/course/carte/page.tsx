@@ -295,7 +295,7 @@ export default function CartePage() {
       {/* FAB: Center on user */}
       <button
         onClick={centerOnUser}
-        className="absolute top-4 right-4 z-20 w-10 h-10 bg-zinc-900 border border-zinc-700 rounded-full flex items-center justify-center text-white shadow-lg"
+        className="fixed top-20 right-4 w-10 h-10 bg-zinc-900 border border-zinc-700 rounded-full flex items-center justify-center text-white shadow-lg" style={{ zIndex: 9998 }}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <circle cx="12" cy="12" r="3" />
@@ -306,7 +306,7 @@ export default function CartePage() {
       {/* FAB: Refresh */}
       <button
         onClick={fetchData}
-        className="absolute top-16 right-4 z-20 w-10 h-10 bg-zinc-900 border border-zinc-700 rounded-full flex items-center justify-center text-white shadow-lg"
+        className="fixed top-32 right-4 w-10 h-10 bg-zinc-900 border border-zinc-700 rounded-full flex items-center justify-center text-white shadow-lg" style={{ zIndex: 9998 }}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
@@ -340,7 +340,8 @@ export default function CartePage() {
               mapRef.current.setView([nearest.latitude, nearest.longitude], 16);
             }
           }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 bg-udt-gradient text-white font-bold text-sm px-6 py-3.5 rounded-2xl shadow-lg flex items-center gap-2 transition-opacity hover:opacity-90"
+          className="fixed left-1/2 -translate-x-1/2 bg-udt-gradient text-white font-bold text-sm px-6 py-3.5 rounded-2xl shadow-lg flex items-center gap-2 transition-opacity hover:opacity-90"
+          style={{ bottom: 'calc(4rem + 1.5rem)', zIndex: 9998 }}
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -352,7 +353,7 @@ export default function CartePage() {
 
       {/* Bottom sheet for checkpoint */}
       {selectedCp && (
-        <div className="absolute bottom-0 inset-x-0 z-30 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl max-h-[70vh] overflow-auto safe-area-bottom">
+        <div className="fixed inset-x-0 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl max-h-[60vh] overflow-auto" style={{ bottom: '4rem', zIndex: 9998 }}
           <div className="p-5 space-y-4">
             {/* Handle */}
             <div className="flex justify-center">

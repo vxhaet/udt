@@ -281,6 +281,7 @@ export default function CartePage() {
   const isInRange = distanceToCp !== null && selectedCp ? distanceToCp <= selectedCp.rayon_validation_metres : false;
 
   return (
+    <>
     <div className="absolute inset-0">
       {/* Map */}
       <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
@@ -291,6 +292,7 @@ export default function CartePage() {
           <div className="w-6 h-6 border-2 border-zinc-700 border-t-brand-pink rounded-full animate-spin" />
         </div>
       )}
+    </div>
 
       {/* FAB: Center on user */}
       <button
@@ -484,6 +486,6 @@ export default function CartePage() {
           onClose={() => setShowCamera(false)}
         />
       )}
-    </div>
+    </>
   );
 }

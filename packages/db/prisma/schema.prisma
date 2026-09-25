@@ -131,11 +131,15 @@ model Checkpoint {
 }
 
 model FormatCourse {
-  id            String     @id @default(cuid())
-  edition_id    String
-  nom           String
-  duree_minutes Int
-  created_at    DateTime   @default(now())
+  id                       String     @id @default(cuid())
+  edition_id               String
+  nom                      String
+  duree_minutes            Int
+  date_depart              DateTime?
+  devoilement_depart       DateTime?
+  devoilement_checkpoints  DateTime?
+  devoilement_points       DateTime?
+  created_at               DateTime   @default(now())
 
   edition     Edition      @relation(fields: [edition_id], references: [id], onDelete: Cascade)
   checkpoints Checkpoint[] @relation("CheckpointFormats")

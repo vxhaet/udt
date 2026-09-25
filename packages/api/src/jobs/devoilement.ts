@@ -8,8 +8,6 @@ import {
 } from '../services/devoilement';
 import { syncEditionStatut } from '../services/statut';
 
-// Track WS notifications already sent (to avoid spamming clients every minute)
-// This does NOT block logic — only prevents duplicate WS events
 const notified = new Set<string>();
 
 export function startDevoilementJobs(): void {
@@ -21,9 +19,7 @@ export function startDevoilementJobs(): void {
     }
   });
 
-  // Run immediately on startup
   checkDevoilements().catch(console.error);
-
   console.log('[Jobs] Devoilement cron démarré (fréquence: 1 min)');
 }
 
@@ -40,7 +36,6 @@ async function checkDevoilements(): Promise<void> {
     where: { statut: { notIn: ['ARCHIVE'] } },
     select: {
       id: true,
-      statut: true,
       date_course: true,
       duree_minutes: true,
       devoilement_depart: true,
@@ -54,10 +49,10 @@ async function checkDevoilements(): Promise<void> {
   for (const edition of editions) {
     const { id, date_course, devoilement_depart, devoilement_checkpoints, devoilement_points, gel_classement } = edition;
 
-    // Synchroniser le statut (INSCRIPTION / EN_COURS / TERMINE) + equipes
+    // Sync edition + team statuses (per-format aware)
     await syncEditionStatut(id, date_course, edition.duree_minutes);
 
-    // Devoilement progressif — notify once
+    // Edition-level devoilement (fallback)
     if (!notified.has(`${id}:depart`) && now >= devoilement_depart) {
       notified.add(`${id}:depart`);
       await processPhaseDepart(id);
@@ -71,7 +66,27 @@ async function checkDevoilements(): Promise<void> {
       await processPhasePoints(id);
     }
 
-    // Gel du classement — check DB state, not cache
+    // Per-format devoilement
+    const formats = await prisma.formatCourse.findMany({
+      where: { edition_id: id },
+      select: { id: true, devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true },
+    });
+    for (const fmt of formats) {
+      if (fmt.devoilement_depart && !notified.has(`${id}:${fmt.id}:depart`) && now >= fmt.devoilement_depart) {
+        notified.add(`${id}:${fmt.id}:depart`);
+        await processPhaseDepart(id);
+      }
+      if (fmt.devoilement_checkpoints && !notified.has(`${id}:${fmt.id}:checkpoints`) && now >= fmt.devoilement_checkpoints) {
+        notified.add(`${id}:${fmt.id}:checkpoints`);
+        await processPhaseCheckpoints(id);
+      }
+      if (fmt.devoilement_points && !notified.has(`${id}:${fmt.id}:points`) && now >= fmt.devoilement_points) {
+        notified.add(`${id}:${fmt.id}:points`);
+        await processPhasePoints(id);
+      }
+    }
+
+    // Gel
     if (!edition.gel_actif && now >= gel_classement) {
       await activateGel(id);
     }

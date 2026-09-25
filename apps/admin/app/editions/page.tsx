@@ -61,6 +61,10 @@ interface FormatItem {
   id?: string;
   nom: string;
   duree_heures: string;
+  date_depart: string;
+  devoilement_depart: string;
+  devoilement_checkpoints: string;
+  devoilement_points: string;
 }
 
 export default function EditionsPage() {
@@ -104,7 +108,13 @@ export default function EditionsPage() {
       const fmts = await apiFetch<{ id: string; nom: string; duree_minutes: number }[]>(
         `/editions/${ed.id}/formats`,
       );
-      setFormats(fmts.map((f) => ({ id: f.id, nom: f.nom, duree_heures: String(f.duree_minutes / 60) })));
+      setFormats(fmts.map((f: any) => ({
+        id: f.id, nom: f.nom, duree_heures: String(f.duree_minutes / 60),
+        date_depart: f.date_depart ? new Date(f.date_depart).toISOString().slice(0, 16) : '',
+        devoilement_depart: f.devoilement_depart ? new Date(f.devoilement_depart).toISOString().slice(0, 16) : '',
+        devoilement_checkpoints: f.devoilement_checkpoints ? new Date(f.devoilement_checkpoints).toISOString().slice(0, 16) : '',
+        devoilement_points: f.devoilement_points ? new Date(f.devoilement_points).toISOString().slice(0, 16) : '',
+      })));
     } catch {
       setFormats([]);
     }
@@ -162,7 +172,14 @@ export default function EditionsPage() {
         // Mettre à jour les formats existants et créer les nouveaux
         for (const fmt of formats) {
           if (!fmt.nom.trim() || !fmt.duree_heures) continue;
-          const data = { nom: fmt.nom.trim(), duree_minutes: Math.round(parseFloat(fmt.duree_heures) * 60) };
+          const data: Record<string, unknown> = {
+            nom: fmt.nom.trim(),
+            duree_minutes: Math.round(parseFloat(fmt.duree_heures) * 60),
+            date_depart: fmt.date_depart ? new Date(fmt.date_depart).toISOString() : null,
+            devoilement_depart: fmt.devoilement_depart ? new Date(fmt.devoilement_depart).toISOString() : null,
+            devoilement_checkpoints: fmt.devoilement_checkpoints ? new Date(fmt.devoilement_checkpoints).toISOString() : null,
+            devoilement_points: fmt.devoilement_points ? new Date(fmt.devoilement_points).toISOString() : null,
+          };
           if (fmt.id) {
             await apiFetch(`/editions/${editingId}/formats/${fmt.id}`, {
               method: 'PATCH',
@@ -188,6 +205,10 @@ export default function EditionsPage() {
               body: JSON.stringify({
                 nom: fmt.nom.trim(),
                 duree_minutes: Math.round(parseFloat(fmt.duree_heures) * 60),
+                date_depart: fmt.date_depart ? new Date(fmt.date_depart).toISOString() : null,
+                devoilement_depart: fmt.devoilement_depart ? new Date(fmt.devoilement_depart).toISOString() : null,
+                devoilement_checkpoints: fmt.devoilement_checkpoints ? new Date(fmt.devoilement_checkpoints).toISOString() : null,
+                devoilement_points: fmt.devoilement_points ? new Date(fmt.devoilement_points).toISOString() : null,
               }),
             });
           }
@@ -378,7 +399,7 @@ export default function EditionsPage() {
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Formats de course</p>
                 <button
                   type="button"
-                  onClick={() => setFormats((f) => [...f, { nom: '', duree_heures: '' }])}
+                  onClick={() => setFormats((f) => [...f, { nom: '', duree_heures: '', date_depart: '', devoilement_depart: '', devoilement_checkpoints: '', devoilement_points: '' }])}
                   className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
                 >
                   <Plus className="w-3 h-3" />
@@ -390,36 +411,37 @@ export default function EditionsPage() {
                   Aucun format. Les checkpoints s'appliqueront à tous les formats par défaut.
                 </p>
               )}
-              {formats.map((fmt, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
-                    placeholder="Nom (ex : 6h, Solo…)"
-                    value={fmt.nom}
-                    onChange={(e) =>
-                      setFormats((prev) => prev.map((f, j) => (j === i ? { ...f, nom: e.target.value } : f)))
-                    }
-                    className={input}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Durée (h)"
-                    value={fmt.duree_heures}
-                    min={0.5}
-                    step={0.5}
-                    onChange={(e) =>
-                      setFormats((prev) => prev.map((f, j) => (j === i ? { ...f, duree_heures: e.target.value } : f)))
-                    }
-                    className={`${input} w-28`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeFormat(i)}
-                    className="text-gray-500 hover:text-red-400 shrink-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+              {formats.map((fmt, i) => {
+                const updateFmt = (field: string, val: string) =>
+                  setFormats((prev) => prev.map((f, j) => (j === i ? { ...f, [field]: val } : f)));
+                return (
+                  <div key={i} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <input placeholder="Nom (ex : 8H)" value={fmt.nom} onChange={(e) => updateFmt('nom', e.target.value)} className={input} />
+                      <input type="number" placeholder="Duree (h)" value={fmt.duree_heures} min={0.5} step={0.5} onChange={(e) => updateFmt('duree_heures', e.target.value)} className={`${input} w-28`} />
+                      <button type="button" onClick={() => removeFormat(i)} className="text-gray-500 hover:text-red-400 shrink-0"><X className="w-4 h-4" /></button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Depart</label>
+                        <input type="datetime-local" value={fmt.date_depart} onChange={(e) => updateFmt('date_depart', e.target.value)} className={`${input} text-xs`} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Devoilement depart</label>
+                        <input type="datetime-local" value={fmt.devoilement_depart} onChange={(e) => updateFmt('devoilement_depart', e.target.value)} className={`${input} text-xs`} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Devoilement checkpoints</label>
+                        <input type="datetime-local" value={fmt.devoilement_checkpoints} onChange={(e) => updateFmt('devoilement_checkpoints', e.target.value)} className={`${input} text-xs`} />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Devoilement points</label>
+                        <input type="datetime-local" value={fmt.devoilement_points} onChange={(e) => updateFmt('devoilement_points', e.target.value)} className={`${input} text-xs`} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
 
               <hr className="border-gray-800" />
               <p className="text-xs text-gray-500 uppercase tracking-wider">Dévoilement progressif</p>

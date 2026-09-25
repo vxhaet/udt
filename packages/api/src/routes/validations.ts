@@ -17,21 +17,23 @@ validationsRouter.post('/', requireParticipant(), async (req, res, next) => {
     const body = CreateValidationSchema.parse(req.body);
     const { participantId, equipeId, editionId } = req.participant!;
 
-    // Vérifier que l'édition est en cours
-    const edition = await prisma.edition.findUnique({ where: { id: editionId }, select: { statut: true, date_course: true, duree_minutes: true } });
-    if (!edition || edition.statut !== 'EN_COURS') {
-      throw new AppError(400, 'L\'édition n\'est pas en cours');
-    }
-    // Vérifier que le temps n'est pas écoulé
-    const finCourse = new Date(edition.date_course.getTime() + edition.duree_minutes * 60_000);
-    if (new Date() > finCourse) {
-      throw new AppError(400, 'Le temps est écoulé !');
-    }
-
     // Vérifier que l'équipe est en course
-    const equipe = await prisma.equipe.findUnique({ where: { id: equipeId } });
+    const equipe = await prisma.equipe.findUnique({
+      where: { id: equipeId },
+      include: { format_course: { select: { date_depart: true, duree_minutes: true } } },
+    });
     if (!equipe || equipe.statut !== 'EN_COURSE') {
       throw new AppError(400, 'Votre équipe n\'est pas en course');
+    }
+
+    // Vérifier que le temps n'est pas écoulé (selon le format de l'equipe)
+    const edition = await prisma.edition.findUnique({ where: { id: editionId }, select: { date_course: true, duree_minutes: true } });
+    if (!edition) throw new AppError(404, 'Edition introuvable');
+    const fmtStart = equipe.format_course?.date_depart ?? edition.date_course;
+    const fmtDuree = equipe.format_course?.duree_minutes ?? edition.duree_minutes;
+    const finCourse = new Date(fmtStart.getTime() + fmtDuree * 60_000);
+    if (new Date() > finCourse) {
+      throw new AppError(400, 'Le temps est écoulé !');
     }
 
     // Vérifier le checkpoint

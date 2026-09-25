@@ -47,14 +47,14 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       .then((msg) => { if (msg) showBroadcast(msg.contenu, msg.type); })
       .catch(() => {});
 
-    apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string }> }>(`/editions/${payload.editionId}/carte`)
+    apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string; points?: number }> }>(`/editions/${payload.editionId}/carte`)
       .then((data) => {
         const eph = data.checkpoints.find(
           (cp) => cp.type === 'EPHEMERE_QG' && (!cp.expires_at || new Date(cp.expires_at) > new Date())
         );
         if (eph) {
           const mins = eph.expires_at ? Math.round((new Date(eph.expires_at).getTime() - Date.now()) / 60000) : 0;
-          showEphemere(`QG ephemere actif : ${eph.nom}${mins > 0 ? ` (${mins} min)` : ''}`, eph.expires_at);
+          showEphemere(`QG ephemere actif ! ${eph.points ?? '?'} points en jeu ! Foncez !`, eph.expires_at);
         } else {
           setEphemereMsg(null);
         }
@@ -103,14 +103,10 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       showBroadcast(data.contenu, data.type);
     }
 
-    function onCheckpointRevealed(data: { checkpoint?: { nom?: string; type?: string; expires_at?: string } }) {
+    function onCheckpointRevealed(data: { checkpoint?: { nom?: string; type?: string; expires_at?: string; points?: number } }) {
       if (data.checkpoint?.type === 'EPHEMERE_QG') {
-        const name = data.checkpoint.nom ?? 'Checkpoint QG';
-        const mins = data.checkpoint.expires_at
-          ? Math.round((new Date(data.checkpoint.expires_at).getTime() - Date.now()) / 60000)
-          : 0;
         showEphemere(
-          `Nouveau checkpoint : ${name}${mins > 0 ? ` (${mins} min)` : ''}`,
+          `QG ephemere actif ! ${data.checkpoint.points ?? '?'} points en jeu ! Foncez !`,
           data.checkpoint.expires_at,
         );
       }

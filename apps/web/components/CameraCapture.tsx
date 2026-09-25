@@ -59,7 +59,7 @@ export default function CameraCapture({ onCapture, onClose }: Props) {
   }, [onCapture]);
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+    <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 99999 }}>
       {error ? (
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="text-center">

@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: 'Ultra DéTour',
   description: "La course à pied par équipe en territoire unknown.",
   manifest: '/manifest.json',
+  icons: [
+    { rel: 'icon', url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    { rel: 'apple-touch-icon', url: '/apple-touch-icon.png' },
+  ],
   openGraph: {
     title: 'Ultra DéTour',
     description: "La course à pied par équipe en territoire unknown.",

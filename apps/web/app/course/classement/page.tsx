@@ -36,10 +36,12 @@ export default function ClassementPage() {
     try {
       const [cl, ed] = await Promise.all([
         apiFetch<ClassementEntry[]>(`/editions/${payload.editionId}/classement`),
-        apiFetch<{ gel_actif?: boolean }>(`/editions/${payload.editionId}`),
+        apiFetch<{ gel_actif?: boolean; formats?: Array<{ id: string; gel_actif: boolean }> }>(`/editions/${payload.editionId}`),
       ]);
       setClassement(cl);
-      setGelActive(!!ed.gel_actif);
+      // Gel is active if edition or any format is frozen
+      const anyFormatGel = ed.formats?.some((f: any) => f.gel_actif) ?? false;
+      setGelActive(!!ed.gel_actif || anyFormatGel);
     } catch (err) {
       console.error('Fetch classement error:', err);
     } finally {

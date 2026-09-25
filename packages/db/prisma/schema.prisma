@@ -140,6 +140,8 @@ model FormatCourse {
   devoilement_checkpoints  DateTime?
   devoilement_points       DateTime?
   gel_classement           DateTime?
+  gel_actif                Boolean    @default(false)
+  classement_gele          Json?
   created_at               DateTime   @default(now())
 
   edition     Edition      @relation(fields: [edition_id], references: [id], onDelete: Cascade)

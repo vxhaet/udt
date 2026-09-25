@@ -5,6 +5,7 @@ import {
   processPhaseCheckpoints,
   processPhasePoints,
   activateGel,
+  activateGelFormat,
 } from '../services/devoilement';
 import { syncEditionStatut } from '../services/statut';
 
@@ -69,7 +70,7 @@ async function checkDevoilements(): Promise<void> {
     // Per-format devoilement
     const formats = await prisma.formatCourse.findMany({
       where: { edition_id: id },
-      select: { id: true, devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true, gel_classement: true },
+      select: { id: true, devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true, gel_classement: true, gel_actif: true },
     });
     for (const fmt of formats) {
       if (fmt.devoilement_depart && !notified.has(`${id}:${fmt.id}:depart`) && now >= fmt.devoilement_depart) {
@@ -86,16 +87,15 @@ async function checkDevoilements(): Promise<void> {
       }
     }
 
-    // Gel — edition level or earliest format gel
-    if (!edition.gel_actif) {
-      const gelTimes = [
-        gel_classement,
-        ...formats.filter((f) => f.gel_classement).map((f) => f.gel_classement!),
-      ];
-      const earliestGel = gelTimes.length > 0 ? new Date(Math.min(...gelTimes.map((d) => d.getTime()))) : null;
-      if (earliestGel && now >= earliestGel) {
-        await activateGel(id);
+    // Gel per format
+    for (const fmt of formats) {
+      if (fmt.gel_classement && !fmt.gel_actif && now >= fmt.gel_classement) {
+        await activateGelFormat(fmt.id);
       }
+    }
+    // Gel edition-level (for editions without formats or with edition-level gel)
+    if (!edition.gel_actif && formats.length === 0 && now >= gel_classement) {
+      await activateGel(id);
     }
   }
 }

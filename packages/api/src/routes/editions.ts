@@ -4,7 +4,7 @@ import { CreateEditionSchema, UpdateEditionSchema } from '@udt/shared';
 import type { ClassementEntry } from '@udt/shared';
 import { requireUser, optionalAuth } from '../middleware/auth';
 import { AppError } from '../middleware/error';
-import { deactivateGel } from '../services/devoilement';
+import { deactivateGel, activateGelFormat } from '../services/devoilement';
 import { syncEditionStatut } from '../services/statut';
 import { resetNotified } from '../jobs/devoilement';
 
@@ -115,6 +115,7 @@ editionsRouter.get('/:id', optionalAuth(), async (req, res, next) => {
       include: {
         _count: { select: { equipes: true, checkpoints: true } },
         config: { select: { segments_strava_actif: true } },
+        formats: { select: { id: true, nom: true, duree_minutes: true, gel_actif: true } },
       },
     });
     if (!edition) throw new AppError(404, 'Édition introuvable');
@@ -255,50 +256,52 @@ editionsRouter.get('/:id/classement', optionalAuth(), async (req, res, next) => 
     const edition = await prisma.edition.findUnique({ where: { id: req.params.id } });
     if (!edition) throw new AppError(404, 'Édition introuvable');
 
-    // Gel actif + snapshot présent → renvoyer le snapshot (sauf pour les admins)
     const isAdmin = !!req.user;
-    if (!isAdmin && edition.gel_actif && edition.classement_gele) {
-      return res.json(edition.classement_gele);
-    }
 
+    // Load frozen format snapshots
+    const frozenFormats = await prisma.formatCourse.findMany({
+      where: { edition_id: req.params.id, gel_actif: true, classement_gele: { not: null } },
+      select: { id: true, classement_gele: true },
+    });
+    const frozenByFormat = new Map(frozenFormats.map((f) => [f.id, f.classement_gele as ClassementEntry[]]));
+
+    // Live classement
     const equipes = await prisma.equipe.findMany({
       where: {
         edition_id: req.params.id,
         statut: { notIn: ['INSCRITE', 'DISQUALIFIEE'] },
       },
       include: {
-        _count: {
-          select: { validations: { where: { statut: 'APPROUVE' } } },
-        },
+        _count: { select: { validations: { where: { statut: 'APPROUVE' } } } },
         format_course: { select: { id: true, nom: true, duree_minutes: true } },
-        validations: {
-          where: { statut: 'APPROUVE' },
-          orderBy: { validated_at: 'desc' },
-          take: 1,
-          include: { checkpoint: { select: { nom: true } } },
-        },
+        validations: { where: { statut: 'APPROUVE' }, orderBy: { validated_at: 'desc' }, take: 1, include: { checkpoint: { select: { nom: true } } } },
       },
-      orderBy: [
-        { score_total: 'desc' },
-        { distance_vol_oiseau_km: 'desc' },
-        { heure_arrivee: 'asc' },
-      ],
+      orderBy: [{ score_total: 'desc' }, { distance_vol_oiseau_km: 'desc' }, { heure_arrivee: 'asc' }],
     });
 
-    const classement: ClassementEntry[] = equipes.map((equipe, idx) => ({
-      rang: idx + 1,
-      equipeId: equipe.id,
-      nom: equipe.nom,
-      scoreTotal: equipe.score_total,
-      distanceVolOiseauKm: equipe.distance_vol_oiseau_km,
-      nbCheckpoints: equipe._count.validations,
-      heureArrivee: equipe.heure_arrivee?.toISOString() ?? null,
-      statut: equipe.statut,
-      format_course: equipe.format_course ?? null,
-      dernier_checkpoint: equipe.validations[0]
-        ? { nom: equipe.validations[0].checkpoint.nom, validated_at: equipe.validations[0].validated_at.toISOString() }
-        : null,
-    }));
+    const classement: ClassementEntry[] = equipes.map((equipe, idx) => {
+      // If this team's format is frozen and we're not admin, use snapshot
+      if (!isAdmin && equipe.format_course_id && frozenByFormat.has(equipe.format_course_id)) {
+        const snapshot = frozenByFormat.get(equipe.format_course_id)!;
+        const frozen = snapshot.find((e) => e.equipeId === equipe.id);
+        if (frozen) return frozen;
+      }
+
+      return {
+        rang: idx + 1,
+        equipeId: equipe.id,
+        nom: equipe.nom,
+        scoreTotal: equipe.score_total,
+        distanceVolOiseauKm: equipe.distance_vol_oiseau_km,
+        nbCheckpoints: equipe._count.validations,
+        heureArrivee: equipe.heure_arrivee?.toISOString() ?? null,
+        statut: equipe.statut,
+        format_course: equipe.format_course ?? null,
+        dernier_checkpoint: equipe.validations[0]
+          ? { nom: equipe.validations[0].checkpoint.nom, validated_at: equipe.validations[0].validated_at.toISOString() }
+          : null,
+      };
+    });
 
     res.json(classement);
   } catch (err) {

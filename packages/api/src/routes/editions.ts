@@ -344,7 +344,12 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
         : []),
       ...(checkpointsVisible
         ? await prisma.checkpoint.findMany({
-            where: { edition_id: req.params.id, actif: true, type: { notIn: ['DEPART', 'ARRIVEE'] } },
+            where: {
+              edition_id: req.params.id,
+              actif: true,
+              type: { notIn: ['DEPART', 'ARRIVEE'] },
+              OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+            },
             select: cpSelect,
             orderBy: { ordre_affichage: 'asc' },
           })

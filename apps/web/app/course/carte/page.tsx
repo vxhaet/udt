@@ -20,6 +20,7 @@ interface Checkpoint {
   type_validation: 'AUTO' | 'MANUELLE' | 'MIXTE';
   type: 'NORMAL' | 'DEPART' | 'ARRIVEE' | 'EPHEMERE_QG';
   ordre_affichage?: number | null;
+  expires_at?: string | null;
 }
 
 interface Validation {
@@ -85,7 +86,12 @@ export default function CartePage() {
     if (!payload) return;
     try {
       const data = await apiFetch<CarteResponse>(`/editions/${payload.editionId}/carte`);
-      setCheckpoints(data.checkpoints);
+      // Filtrer les checkpoints ephemeres expires
+      const now = new Date();
+      const activeCps = data.checkpoints.filter(
+        (cp) => !cp.expires_at || new Date(cp.expires_at) > now
+      );
+      setCheckpoints(activeCps);
       setValidations(data.validations);
     } catch (err) {
       console.error('Fetch carte error:', err);
@@ -105,6 +111,18 @@ export default function CartePage() {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
     );
     return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  // Auto-remove expired checkpoints every 15s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCheckpoints((prev) => {
+        const now = new Date();
+        const filtered = prev.filter((cp) => !cp.expires_at || new Date(cp.expires_at) > now);
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+    }, 15_000);
+    return () => clearInterval(id);
   }, []);
 
   // Socket events

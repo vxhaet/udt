@@ -19,47 +19,44 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
   const { token, payload, loading, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [qgMessage, setQgMessage] = useState<{ contenu: string; type: string } | null>(null);
-  const qgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [broadcastMsg, setBroadcastMsg] = useState<{ contenu: string; type: string } | null>(null);
+  const [ephemereMsg, setEphemereMsg] = useState<{ contenu: string; type: string } | null>(null);
+  const ephemereTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function showQgBanner(text: string, type: string, expiresAt?: string) {
-    if (qgTimerRef.current) clearTimeout(qgTimerRef.current);
-    setQgMessage({ contenu: text, type });
+  function showBroadcast(text: string, type: string) {
+    setBroadcastMsg({ contenu: text, type });
+  }
+
+  function showEphemere(text: string, expiresAt?: string) {
+    if (ephemereTimerRef.current) clearTimeout(ephemereTimerRef.current);
+    setEphemereMsg({ contenu: text, type: 'QG' });
     if (expiresAt) {
       const dismissMs = Math.max(new Date(expiresAt).getTime() - Date.now(), 1000);
-      qgTimerRef.current = setTimeout(() => setQgMessage(null), dismissMs);
+      ephemereTimerRef.current = setTimeout(() => setEphemereMsg(null), dismissMs);
     }
-    // No auto-dismiss for regular messages — user or admin dismisses
   }
 
   useEffect(() => {
     if (!loading && !token) router.replace('/login');
   }, [loading, token, router]);
 
-  // Check for active messages + ephemeral QG
   const checkActiveMessages = useCallback(() => {
     if (!payload) return;
 
     apiFetch<{ contenu: string; type: string } | null>(`/editions/${payload.editionId}/messages/active`)
-      .then((msg) => {
-        if (msg) showQgBanner(msg.contenu, msg.type);
-      })
+      .then((msg) => { if (msg) showBroadcast(msg.contenu, msg.type); })
       .catch(() => {});
 
     apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string }> }>(`/editions/${payload.editionId}/carte`)
       .then((data) => {
-        const ephemere = data.checkpoints.find(
+        const eph = data.checkpoints.find(
           (cp) => cp.type === 'EPHEMERE_QG' && (!cp.expires_at || new Date(cp.expires_at) > new Date())
         );
-        if (ephemere) {
-          const mins = ephemere.expires_at
-            ? Math.round((new Date(ephemere.expires_at).getTime() - Date.now()) / 60000)
-            : 0;
-          showQgBanner(
-            `QG ephemere actif : ${ephemere.nom}${mins > 0 ? ` (${mins} min)` : ''}`,
-            'QG',
-            ephemere.expires_at,
-          );
+        if (eph) {
+          const mins = eph.expires_at ? Math.round((new Date(eph.expires_at).getTime() - Date.now()) / 60000) : 0;
+          showEphemere(`QG ephemere actif : ${eph.nom}${mins > 0 ? ` (${mins} min)` : ''}`, eph.expires_at);
+        } else {
+          setEphemereMsg(null);
         }
       })
       .catch(() => {});
@@ -102,8 +99,8 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
     if (socket.connected) joinEdition();
     socket.on('connect', joinEdition);
 
-    function onMessageQg(data: { contenu: string; type: string; expires_at?: string }) {
-      showQgBanner(data.contenu, data.type, data.expires_at);
+    function onMessageQg(data: { contenu: string; type: string }) {
+      showBroadcast(data.contenu, data.type);
     }
 
     function onCheckpointRevealed(data: { checkpoint?: { nom?: string; type?: string; expires_at?: string } }) {
@@ -112,21 +109,20 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
         const mins = data.checkpoint.expires_at
           ? Math.round((new Date(data.checkpoint.expires_at).getTime() - Date.now()) / 60000)
           : 0;
-        showQgBanner(
+        showEphemere(
           `Nouveau checkpoint : ${name}${mins > 0 ? ` (${mins} min)` : ''}`,
-          'QG',
           data.checkpoint.expires_at,
         );
       }
     }
 
-    function onCheckpointTaken() { setQgMessage(null); }
-    function onMessageDismiss() { setQgMessage(null); }
+    function onCheckpointTaken() { setEphemereMsg(null); }
+    function onMessageDismiss() { setBroadcastMsg(null); }
 
     socket.on('message:qg', onMessageQg);
     socket.on('checkpoint:revealed', onCheckpointRevealed);
     socket.on('checkpoint:taken', onCheckpointTaken);
-    socket.on('checkpoint:expired', () => setQgMessage(null));
+    socket.on('checkpoint:expired', () => setEphemereMsg(null));
     socket.on('message:dismiss', onMessageDismiss);
     return () => {
       socket.off('connect', joinEdition);
@@ -148,17 +144,25 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
-      {/* QG Message Banner */}
-      {qgMessage && (
+      {/* Broadcast message banner (INFO / ALERTE / METEO) */}
+      {broadcastMsg && (
         <div
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white ${
-            qgMessage.type === 'ALERTE' ? 'bg-red-600' : qgMessage.type === 'METEO' ? 'bg-blue-600' : qgMessage.type === 'QG' ? 'bg-orange-500' : 'bg-amber-500'
+            broadcastMsg.type === 'ALERTE' ? 'bg-red-600' : broadcastMsg.type === 'METEO' ? 'bg-blue-600' : 'bg-amber-500'
           }`}
         >
           <span className="text-lg shrink-0">
-            {qgMessage.type === 'ALERTE' ? '⚠️' : qgMessage.type === 'METEO' ? '⛅' : qgMessage.type === 'QG' ? '📍' : 'ℹ️'}
+            {broadcastMsg.type === 'ALERTE' ? '⚠️' : broadcastMsg.type === 'METEO' ? '⛅' : 'ℹ️'}
           </span>
-          <span className="flex-1">{qgMessage.contenu}</span>
+          <span className="flex-1">{broadcastMsg.contenu}</span>
+        </div>
+      )}
+
+      {/* QG ephemere banner */}
+      {ephemereMsg && (
+        <div className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-orange-500">
+          <span className="text-lg shrink-0">📍</span>
+          <span className="flex-1">{ephemereMsg.contenu}</span>
         </div>
       )}
 

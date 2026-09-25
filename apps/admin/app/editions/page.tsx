@@ -151,9 +151,9 @@ export default function EditionsPage() {
         solo_autorise: form.solo_autorise,
         prix_equipe: Math.round(Number(form.prix_equipe) * 100), // € → centimes
         date_course: new Date(form.date_course).toISOString(),
-        devoilement_depart: new Date(form.devoilement_depart).toISOString(),
-        devoilement_checkpoints: new Date(form.devoilement_checkpoints).toISOString(),
-        devoilement_points: new Date(form.devoilement_points).toISOString(),
+        devoilement_depart: form.devoilement_depart ? new Date(form.devoilement_depart).toISOString() : new Date('2020-01-01').toISOString(),
+        devoilement_checkpoints: form.devoilement_checkpoints ? new Date(form.devoilement_checkpoints).toISOString() : new Date('2020-01-01').toISOString(),
+        devoilement_points: form.devoilement_points ? new Date(form.devoilement_points).toISOString() : new Date('2020-01-01').toISOString(),
         gel_classement: new Date(form.gel_classement).toISOString(),
       };
 
@@ -444,17 +444,7 @@ export default function EditionsPage() {
               })}
 
               <hr className="border-gray-800" />
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Dévoilement progressif</p>
-              <Field label="Dévoilement départ (J-7) *">
-                <input type="datetime-local" name="devoilement_depart" value={form.devoilement_depart} onChange={handleChange} required className={input} />
-              </Field>
-              <Field label="Dévoilement checkpoints (J-48h) *">
-                <input type="datetime-local" name="devoilement_checkpoints" value={form.devoilement_checkpoints} onChange={handleChange} required className={input} />
-              </Field>
-              <Field label="Dévoilement points (J-24h) *">
-                <input type="datetime-local" name="devoilement_points" value={form.devoilement_points} onChange={handleChange} required className={input} />
-              </Field>
-              <Field label="Gel classement (T-1h) *">
+              <Field label="Gel classement *">
                 <input type="datetime-local" name="gel_classement" value={form.gel_classement} onChange={handleChange} required className={input} />
               </Field>
 

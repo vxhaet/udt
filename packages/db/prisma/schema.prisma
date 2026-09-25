@@ -139,6 +139,7 @@ model FormatCourse {
   devoilement_depart       DateTime?
   devoilement_checkpoints  DateTime?
   devoilement_points       DateTime?
+  gel_classement           DateTime?
   created_at               DateTime   @default(now())
 
   edition     Edition      @relation(fields: [edition_id], references: [id], onDelete: Cascade)

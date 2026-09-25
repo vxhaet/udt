@@ -65,6 +65,7 @@ interface FormatItem {
   devoilement_depart: string;
   devoilement_checkpoints: string;
   devoilement_points: string;
+  gel_classement: string;
 }
 
 export default function EditionsPage() {
@@ -114,6 +115,7 @@ export default function EditionsPage() {
         devoilement_depart: f.devoilement_depart ? new Date(f.devoilement_depart).toISOString().slice(0, 16) : '',
         devoilement_checkpoints: f.devoilement_checkpoints ? new Date(f.devoilement_checkpoints).toISOString().slice(0, 16) : '',
         devoilement_points: f.devoilement_points ? new Date(f.devoilement_points).toISOString().slice(0, 16) : '',
+        gel_classement: f.gel_classement ? new Date(f.gel_classement).toISOString().slice(0, 16) : '',
       })));
     } catch {
       setFormats([]);
@@ -154,7 +156,7 @@ export default function EditionsPage() {
         devoilement_depart: form.devoilement_depart ? new Date(form.devoilement_depart).toISOString() : new Date('2020-01-01').toISOString(),
         devoilement_checkpoints: form.devoilement_checkpoints ? new Date(form.devoilement_checkpoints).toISOString() : new Date('2020-01-01').toISOString(),
         devoilement_points: form.devoilement_points ? new Date(form.devoilement_points).toISOString() : new Date('2020-01-01').toISOString(),
-        gel_classement: new Date(form.gel_classement).toISOString(),
+        gel_classement: form.gel_classement ? new Date(form.gel_classement).toISOString() : new Date('2099-01-01').toISOString(),
       };
 
       if (editingId) {
@@ -179,6 +181,7 @@ export default function EditionsPage() {
             devoilement_depart: fmt.devoilement_depart ? new Date(fmt.devoilement_depart).toISOString() : null,
             devoilement_checkpoints: fmt.devoilement_checkpoints ? new Date(fmt.devoilement_checkpoints).toISOString() : null,
             devoilement_points: fmt.devoilement_points ? new Date(fmt.devoilement_points).toISOString() : null,
+            gel_classement: fmt.gel_classement ? new Date(fmt.gel_classement).toISOString() : null,
           };
           if (fmt.id) {
             await apiFetch(`/editions/${editingId}/formats/${fmt.id}`, {
@@ -209,6 +212,7 @@ export default function EditionsPage() {
                 devoilement_depart: fmt.devoilement_depart ? new Date(fmt.devoilement_depart).toISOString() : null,
                 devoilement_checkpoints: fmt.devoilement_checkpoints ? new Date(fmt.devoilement_checkpoints).toISOString() : null,
                 devoilement_points: fmt.devoilement_points ? new Date(fmt.devoilement_points).toISOString() : null,
+                gel_classement: fmt.gel_classement ? new Date(fmt.gel_classement).toISOString() : null,
               }),
             });
           }
@@ -399,7 +403,7 @@ export default function EditionsPage() {
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Formats de course</p>
                 <button
                   type="button"
-                  onClick={() => setFormats((f) => [...f, { nom: '', duree_heures: '', date_depart: '', devoilement_depart: '', devoilement_checkpoints: '', devoilement_points: '' }])}
+                  onClick={() => setFormats((f) => [...f, { nom: '', duree_heures: '', date_depart: '', devoilement_depart: '', devoilement_checkpoints: '', devoilement_points: '', gel_classement: '' }])}
                   className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
                 >
                   <Plus className="w-3 h-3" />
@@ -438,15 +442,15 @@ export default function EditionsPage() {
                         <label className="block text-xs text-gray-500 mb-0.5">Devoilement points</label>
                         <input type="datetime-local" value={fmt.devoilement_points} onChange={(e) => updateFmt('devoilement_points', e.target.value)} className={`${input} text-xs`} />
                       </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-0.5">Gel classement</label>
+                        <input type="datetime-local" value={fmt.gel_classement} onChange={(e) => updateFmt('gel_classement', e.target.value)} className={`${input} text-xs`} />
+                      </div>
                     </div>
                   </div>
                 );
               })}
 
-              <hr className="border-gray-800" />
-              <Field label="Gel classement *">
-                <input type="datetime-local" name="gel_classement" value={form.gel_classement} onChange={handleChange} required className={input} />
-              </Field>
 
               <div className="flex gap-2 pt-2">
                 <button

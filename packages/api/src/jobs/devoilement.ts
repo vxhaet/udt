@@ -69,7 +69,7 @@ async function checkDevoilements(): Promise<void> {
     // Per-format devoilement
     const formats = await prisma.formatCourse.findMany({
       where: { edition_id: id },
-      select: { id: true, devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true },
+      select: { id: true, devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true, gel_classement: true },
     });
     for (const fmt of formats) {
       if (fmt.devoilement_depart && !notified.has(`${id}:${fmt.id}:depart`) && now >= fmt.devoilement_depart) {
@@ -86,9 +86,16 @@ async function checkDevoilements(): Promise<void> {
       }
     }
 
-    // Gel
-    if (!edition.gel_actif && now >= gel_classement) {
-      await activateGel(id);
+    // Gel — edition level or earliest format gel
+    if (!edition.gel_actif) {
+      const gelTimes = [
+        gel_classement,
+        ...formats.filter((f) => f.gel_classement).map((f) => f.gel_classement!),
+      ];
+      const earliestGel = gelTimes.length > 0 ? new Date(Math.min(...gelTimes.map((d) => d.getTime()))) : null;
+      if (earliestGel && now >= earliestGel) {
+        await activateGel(id);
+      }
     }
   }
 }

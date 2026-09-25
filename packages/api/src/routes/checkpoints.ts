@@ -199,23 +199,12 @@ checkpointsRouter.post(
         },
       });
 
-      // Broadcast checkpoint révélé
+      // Broadcast checkpoint révélé (le front gere le bandeau ephemere via cet event)
       emitToAll(req.params.id, 'checkpoint:revealed', { checkpoint });
 
-      // Message d'alerte broadcast (WS + push)
-      const alertContenu =
-        `🚨 QG éphémère actif ! ${cpPoints} points ! Foncez !`;
+      const alertContenu = `QG ephemere actif ! ${cpPoints} points en jeu ! Foncez !`;
 
-      emitToAll(req.params.id, 'message:qg', {
-        id: crypto.randomUUID(),
-        editionId: req.params.id,
-        contenu: alertContenu,
-        type: 'ALERTE',
-        timestamp: new Date().toISOString(),
-        expires_at: expiresAt.toISOString(),
-      });
-
-      // Push Expo
+      // Push Expo (pas de message:qg pour ne pas ecraser le broadcast actif)
       const participants = await prisma.participant.findMany({
         where: {
           equipe: { edition_id: req.params.id },

@@ -20,21 +20,31 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [broadcastMsg, setBroadcastMsg] = useState<{ contenu: string; type: string } | null>(null);
-  const [ephemereMsg, setEphemereMsg] = useState<{ contenu: string; type: string } | null>(null);
-  const ephemereTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [ephemereData, setEphemereData] = useState<{ points: number; expiresAt: string } | null>(null);
+  const [ephemereCountdown, setEphemereCountdown] = useState('');
 
   function showBroadcast(text: string, type: string) {
     setBroadcastMsg({ contenu: text, type });
   }
 
-  function showEphemere(text: string, expiresAt?: string) {
-    if (ephemereTimerRef.current) clearTimeout(ephemereTimerRef.current);
-    setEphemereMsg({ contenu: text, type: 'QG' });
-    if (expiresAt) {
-      const dismissMs = Math.max(new Date(expiresAt).getTime() - Date.now(), 1000);
-      ephemereTimerRef.current = setTimeout(() => setEphemereMsg(null), dismissMs);
-    }
+  function showEphemere(points: number, expiresAt: string) {
+    setEphemereData({ points, expiresAt });
   }
+
+  // Countdown timer for ephemere
+  useEffect(() => {
+    if (!ephemereData) { setEphemereCountdown(''); return; }
+    function tick() {
+      const remaining = Math.max(0, new Date(ephemereData!.expiresAt).getTime() - Date.now());
+      if (remaining <= 0) { setEphemereData(null); setEphemereCountdown(''); return; }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      setEphemereCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [ephemereData]);
 
   useEffect(() => {
     if (!loading && !token) router.replace('/login');
@@ -54,9 +64,9 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
         );
         if (eph) {
           const mins = eph.expires_at ? Math.round((new Date(eph.expires_at).getTime() - Date.now()) / 60000) : 0;
-          showEphemere(`QG ephemere actif ! ${eph.points ?? '?'} points en jeu ! Foncez !`, eph.expires_at);
+          showEphemere(eph.points ?? 0, eph.expires_at!);
         } else {
-          setEphemereMsg(null);
+          setEphemereData(null);
         }
       })
       .catch(() => {});
@@ -105,20 +115,17 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
 
     function onCheckpointRevealed(data: { checkpoint?: { nom?: string; type?: string; expires_at?: string; points?: number } }) {
       if (data.checkpoint?.type === 'EPHEMERE_QG') {
-        showEphemere(
-          `QG ephemere actif ! ${data.checkpoint.points ?? '?'} points en jeu ! Foncez !`,
-          data.checkpoint.expires_at,
-        );
+        showEphemere(data.checkpoint.points ?? 0, data.checkpoint.expires_at!);
       }
     }
 
-    function onCheckpointTaken() { setEphemereMsg(null); }
+    function onCheckpointTaken() { setEphemereData(null); }
     function onMessageDismiss() { setBroadcastMsg(null); }
 
     socket.on('message:qg', onMessageQg);
     socket.on('checkpoint:revealed', onCheckpointRevealed);
     socket.on('checkpoint:taken', onCheckpointTaken);
-    socket.on('checkpoint:expired', () => setEphemereMsg(null));
+    socket.on('checkpoint:expired', () => setEphemereData(null));
     socket.on('message:dismiss', onMessageDismiss);
     return () => {
       socket.off('connect', joinEdition);
@@ -155,10 +162,13 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* QG ephemere banner */}
-      {ephemereMsg && (
+      {ephemereData && (
         <div className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-orange-500">
           <span className="text-lg shrink-0">📍</span>
-          <span className="flex-1">{ephemereMsg.contenu}</span>
+          <span className="flex-1">QG ephemere actif ! {ephemereData.points} points en jeu ! Foncez !</span>
+          {ephemereCountdown && (
+            <span className="shrink-0 font-mono bg-white/20 px-2 py-0.5 rounded text-xs">{ephemereCountdown}</span>
+          )}
         </div>
       )}
 

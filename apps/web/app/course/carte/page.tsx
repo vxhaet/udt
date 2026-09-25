@@ -281,18 +281,14 @@ export default function CartePage() {
   const isInRange = distanceToCp !== null && selectedCp ? distanceToCp <= selectedCp.rayon_validation_metres : false;
 
   return (
-    <>
-    <div className="absolute inset-0">
-      {/* Map */}
-      <div ref={mapContainerRef} className="w-full h-full" style={{ zIndex: 0 }} />
+    <div className="absolute inset-0" style={{ overflow: 'visible' }}>
+      <div className="w-full h-full" style={{ zIndex: 0 }} ref={mapContainerRef} />
 
-      {/* Loading overlay */}
       {loading && (
         <div className="absolute inset-0 bg-zinc-950/80 flex items-center justify-center z-10">
           <div className="w-6 h-6 border-2 border-zinc-700 border-t-brand-pink rounded-full animate-spin" />
         </div>
       )}
-    </div>
 
       {/* FAB: Center on user */}
       <button
@@ -355,7 +351,7 @@ export default function CartePage() {
 
       {/* Bottom sheet for checkpoint */}
       {selectedCp && (
-        <div className="fixed inset-x-0 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl max-h-[60vh] overflow-auto" style={{ bottom: '4rem', zIndex: 9998 }}
+        <div className="fixed inset-x-0 bg-zinc-900 border-t border-zinc-700 rounded-t-2xl max-h-[60vh] overflow-auto" style={{ bottom: '4rem', zIndex: 9998 }}>
           <div className="p-5 space-y-4">
             {/* Handle */}
             <div className="flex justify-center">
@@ -486,6 +482,6 @@ export default function CartePage() {
           onClose={() => setShowCamera(false)}
         />
       )}
-    </>
+    </div>
   );
 }

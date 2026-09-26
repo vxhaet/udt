@@ -24,11 +24,17 @@ export async function syncEditionStatut(
   let latestEnd: Date;
 
   if (formats.length > 0) {
-    const starts = formats.map((f) => f.date_depart ?? fallbackDateCourse);
-    const ends = formats.map((f) => {
-      const start = f.date_depart ?? fallbackDateCourse;
-      return new Date(start.getTime() + f.duree_minutes * 60_000);
-    });
+    const formatsWithDepart = formats.filter((f) => f.date_depart !== null);
+    if (formatsWithDepart.length === 0) {
+      // Aucun format n'a de date de depart configuree → pas encore pret
+      const edition = await prisma.edition.findUnique({ where: { id: editionId }, select: { statut: true } });
+      if (edition?.statut !== 'INSCRIPTION') {
+        await prisma.edition.update({ where: { id: editionId }, data: { statut: 'INSCRIPTION' } });
+      }
+      return 'INSCRIPTION';
+    }
+    const starts = formatsWithDepart.map((f) => f.date_depart!);
+    const ends = formatsWithDepart.map((f) => new Date(f.date_depart!.getTime() + f.duree_minutes * 60_000));
     earliestStart = new Date(Math.min(...starts.map((d) => d.getTime())));
     latestEnd = new Date(Math.max(...ends.map((d) => d.getTime())));
   } else {
@@ -51,7 +57,15 @@ export async function syncEditionStatut(
   // Sync team statuses per format
   if (formats.length > 0) {
     for (const fmt of formats) {
-      const fmtStart = fmt.date_depart ?? fallbackDateCourse;
+      if (!fmt.date_depart) {
+        // Pas de date de depart → equipes restent CONFIRMEE
+        await prisma.equipe.updateMany({
+          where: { edition_id: editionId, format_course_id: fmt.id, statut: { in: ['EN_COURSE', 'ARRIVEE'] } },
+          data: { statut: 'CONFIRMEE', heure_depart: null, heure_arrivee: null },
+        });
+        continue;
+      }
+      const fmtStart = fmt.date_depart;
       const fmtEnd = new Date(fmtStart.getTime() + fmt.duree_minutes * 60_000);
 
       if (now >= fmtStart && now < fmtEnd) {

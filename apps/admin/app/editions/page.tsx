@@ -111,11 +111,11 @@ export default function EditionsPage() {
       );
       setFormats(fmts.map((f: any) => ({
         id: f.id, nom: f.nom, duree_heures: String(f.duree_minutes / 60),
-        date_depart: f.date_depart ? new Date(f.date_depart).toISOString().slice(0, 16) : '',
-        devoilement_depart: f.devoilement_depart ? new Date(f.devoilement_depart).toISOString().slice(0, 16) : '',
-        devoilement_checkpoints: f.devoilement_checkpoints ? new Date(f.devoilement_checkpoints).toISOString().slice(0, 16) : '',
-        devoilement_points: f.devoilement_points ? new Date(f.devoilement_points).toISOString().slice(0, 16) : '',
-        gel_classement: f.gel_classement ? new Date(f.gel_classement).toISOString().slice(0, 16) : '',
+        date_depart: f.date_depart ? toDatetimeLocal(f.date_depart) : '',
+        devoilement_depart: f.devoilement_depart ? toDatetimeLocal(f.devoilement_depart) : '',
+        devoilement_checkpoints: f.devoilement_checkpoints ? toDatetimeLocal(f.devoilement_checkpoints) : '',
+        devoilement_points: f.devoilement_points ? toDatetimeLocal(f.devoilement_points) : '',
+        gel_classement: f.gel_classement ? toDatetimeLocal(f.gel_classement) : '',
       })));
     } catch {
       setFormats([]);

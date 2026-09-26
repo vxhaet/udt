@@ -143,20 +143,29 @@ export default function EditionsPage() {
     setSaving(true);
     setError('');
     try {
+      // Compute date_course and duree_minutes from formats
+      const fmtsWithDepart = formats.filter((f) => f.date_depart);
+      const computedDateCourse = fmtsWithDepart.length > 0
+        ? new Date(Math.min(...fmtsWithDepart.map((f) => new Date(f.date_depart).getTime()))).toISOString()
+        : new Date('2099-01-01').toISOString();
+      const computedDuree = fmtsWithDepart.length > 0
+        ? Math.round((Math.max(...fmtsWithDepart.map((f) => new Date(f.date_depart).getTime() + parseFloat(f.duree_heures) * 3600_000)) - Math.min(...fmtsWithDepart.map((f) => new Date(f.date_depart).getTime()))) / 60_000)
+        : 480;
+
       const payload = {
         ...form,
         slug: form.slug.trim() || undefined,
         reglement: form.reglement.trim() || undefined,
-        duree_minutes: Number(form.duree_minutes),
+        duree_minutes: computedDuree,
         nb_equipes_max: Number(form.nb_equipes_max),
         nb_participants_par_equipe: Number(form.nb_participants_par_equipe),
         solo_autorise: form.solo_autorise,
-        prix_equipe: Math.round(Number(form.prix_equipe) * 100), // € → centimes
-        date_course: new Date(form.date_course).toISOString(),
-        devoilement_depart: form.devoilement_depart ? new Date(form.devoilement_depart).toISOString() : new Date('2020-01-01').toISOString(),
-        devoilement_checkpoints: form.devoilement_checkpoints ? new Date(form.devoilement_checkpoints).toISOString() : new Date('2020-01-01').toISOString(),
-        devoilement_points: form.devoilement_points ? new Date(form.devoilement_points).toISOString() : new Date('2020-01-01').toISOString(),
-        gel_classement: form.gel_classement ? new Date(form.gel_classement).toISOString() : new Date('2099-01-01').toISOString(),
+        prix_equipe: Math.round(Number(form.prix_equipe) * 100),
+        date_course: computedDateCourse,
+        devoilement_depart: new Date('2020-01-01').toISOString(),
+        devoilement_checkpoints: new Date('2020-01-01').toISOString(),
+        devoilement_points: new Date('2020-01-01').toISOString(),
+        gel_classement: new Date('2099-01-01').toISOString(),
       };
 
       if (editingId) {
@@ -364,14 +373,6 @@ export default function EditionsPage() {
                 <textarea name="reglement" value={form.reglement} onChange={handleChange} rows={4} className={input} placeholder="## Règlement&#10;- Règle 1&#10;- Règle 2…" />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Date de course *">
-                  <input type="datetime-local" name="date_course" value={form.date_course} onChange={handleChange} required className={input} />
-                </Field>
-                <Field label="Durée (min) *">
-                  <input type="number" name="duree_minutes" value={form.duree_minutes} onChange={handleChange} required min={30} className={input} />
-                </Field>
-              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Équipes max *">

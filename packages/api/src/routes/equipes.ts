@@ -68,7 +68,7 @@ equipesRouter.get('/:id', requireParticipant(), async (req, res, next) => {
         participants: {
           select: { id: true, nom: true, prenom: true, strava_athlete_id: true },
         },
-        format_course: { select: { id: true, nom: true, duree_minutes: true } },
+        format_course: { select: { id: true, nom: true, duree_minutes: true, date_depart: true } },
       },
     });
     if (!equipe) throw new AppError(404, 'Equipe introuvable');

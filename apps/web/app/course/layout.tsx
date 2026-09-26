@@ -22,6 +22,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
   const [broadcastMsg, setBroadcastMsg] = useState<{ contenu: string; type: string } | null>(null);
   const [ephemereData, setEphemereData] = useState<{ points: number; expiresAt: string } | null>(null);
   const [ephemereCountdown, setEphemereCountdown] = useState('');
+  const [startCountdown, setStartCountdown] = useState<string | null>(null);
 
   function showBroadcast(text: string, type: string) {
     setBroadcastMsg({ contenu: text, type });
@@ -49,6 +50,31 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!loading && !token) router.replace('/login');
   }, [loading, token, router]);
+
+  // Check if team's format has started — show countdown if not
+  useEffect(() => {
+    if (!payload) return;
+    apiFetch<{ format_course?: { date_depart?: string; duree_minutes: number } | null }>(`/equipes/${payload.equipeId}`)
+      .then((equipe) => {
+        const dep = equipe.format_course?.date_depart;
+        if (!dep) return;
+        const startTime = new Date(dep);
+        if (new Date() >= startTime) { setStartCountdown(null); return; }
+
+        function tick() {
+          const remaining = startTime.getTime() - Date.now();
+          if (remaining <= 0) { setStartCountdown(null); return; }
+          const h = Math.floor(remaining / 3600_000);
+          const m = Math.floor((remaining % 3600_000) / 60_000);
+          const s = Math.floor((remaining % 60_000) / 1000);
+          setStartCountdown(`${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+        }
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+      })
+      .catch(() => {});
+  }, [payload]);
 
   const checkActiveMessages = useCallback(() => {
     if (!payload) return;
@@ -147,6 +173,15 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
+      {/* Start countdown banner */}
+      {startCountdown && (
+        <div className="flex items-center justify-center gap-3 px-4 py-3 bg-udt-gradient text-white font-bold text-sm">
+          <span>🏁</span>
+          <span>Votre course demarre dans :</span>
+          <span className="font-mono bg-white/20 px-3 py-1 rounded-lg text-lg">{startCountdown}</span>
+        </div>
+      )}
+
       {/* Broadcast message banner (INFO / ALERTE / METEO) */}
       {broadcastMsg && (
         <div

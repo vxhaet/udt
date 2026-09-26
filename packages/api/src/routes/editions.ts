@@ -260,10 +260,10 @@ editionsRouter.get('/:id/classement', optionalAuth(), async (req, res, next) => 
 
     // Load frozen format snapshots
     const frozenFormats = await prisma.formatCourse.findMany({
-      where: { edition_id: req.params.id, gel_actif: true, classement_gele: { not: null } },
+      where: { edition_id: req.params.id, gel_actif: true },
       select: { id: true, classement_gele: true },
     });
-    const frozenByFormat = new Map(frozenFormats.map((f) => [f.id, f.classement_gele as ClassementEntry[]]));
+    const frozenByFormat = new Map(frozenFormats.filter((f) => f.classement_gele).map((f) => [f.id, f.classement_gele as unknown as ClassementEntry[]]));
 
     // Live classement
     const equipes = await prisma.equipe.findMany({

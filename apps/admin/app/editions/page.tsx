@@ -420,10 +420,16 @@ export default function EditionsPage() {
                   setFormats((prev) => prev.map((f, j) => (j === i ? { ...f, [field]: val } : f)));
                 return (
                   <div key={i} className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 space-y-2">
-                    <div className="flex gap-2 items-center">
-                      <input placeholder="Nom (ex : 8H)" value={fmt.nom} onChange={(e) => updateFmt('nom', e.target.value)} className={input} />
-                      <input type="number" placeholder="Duree (h)" value={fmt.duree_heures} min={0.5} step={0.5} onChange={(e) => updateFmt('duree_heures', e.target.value)} className={`${input} w-28`} />
-                      <button type="button" onClick={() => removeFormat(i)} className="text-gray-500 hover:text-red-400 shrink-0"><X className="w-4 h-4" /></button>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-0.5">Nom du format</label>
+                        <input placeholder="ex : 8H" value={fmt.nom} onChange={(e) => updateFmt('nom', e.target.value)} className={input} />
+                      </div>
+                      <div className="w-28">
+                        <label className="block text-xs text-gray-500 mb-0.5">Duree (h)</label>
+                        <input type="number" placeholder="8" value={fmt.duree_heures} min={0.5} step={0.5} onChange={(e) => updateFmt('duree_heures', e.target.value)} className={input} />
+                      </div>
+                      <button type="button" onClick={() => removeFormat(i)} className="text-gray-500 hover:text-red-400 shrink-0 pb-2"><X className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>

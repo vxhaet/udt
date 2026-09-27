@@ -168,7 +168,7 @@ export default function ClassementPage() {
 
       {/* List */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden divide-y divide-zinc-800">
-        {(top3.length < 3 ? classement : rest).map((entry) => {
+        {(top3.length < 3 ? filtered : rest).map((entry) => {
           const isMine = entry.equipeId === payload?.equipeId;
           return (
             <button

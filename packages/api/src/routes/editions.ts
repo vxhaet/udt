@@ -317,9 +317,39 @@ editionsRouter.get('/:id/carte', optionalAuth(), async (req, res, next) => {
 
     const now = new Date();
     const isAdmin = !!req.user;
-    const checkpointsVisible = isAdmin || now >= edition.devoilement_checkpoints;
-    const pointsVisible = isAdmin || now >= edition.devoilement_points;
-    const departVisible = isAdmin || now >= edition.devoilement_depart;
+
+    // Devoilement: per-format if participant has a format, else edition-level
+    let departVisible = isAdmin;
+    let checkpointsVisible = isAdmin;
+    let pointsVisible = isAdmin;
+
+    if (!isAdmin) {
+      let devDepart = edition.devoilement_depart;
+      let devCheckpoints = edition.devoilement_checkpoints;
+      let devPoints = edition.devoilement_points;
+
+      if (req.participant) {
+        const equipe = await prisma.equipe.findUnique({
+          where: { id: req.participant.equipeId },
+          select: { format_course_id: true },
+        });
+        if (equipe?.format_course_id) {
+          const fmt = await prisma.formatCourse.findUnique({
+            where: { id: equipe.format_course_id },
+            select: { devoilement_depart: true, devoilement_checkpoints: true, devoilement_points: true },
+          });
+          if (fmt) {
+            if (fmt.devoilement_depart) devDepart = fmt.devoilement_depart;
+            if (fmt.devoilement_checkpoints) devCheckpoints = fmt.devoilement_checkpoints;
+            if (fmt.devoilement_points) devPoints = fmt.devoilement_points;
+          }
+        }
+      }
+
+      departVisible = now >= devDepart;
+      checkpointsVisible = now >= devCheckpoints;
+      pointsVisible = now >= devPoints;
+    }
 
     // DEPART/ARRIVEE follow departVisible ; NORMAL/EPHEMERE_QG follow checkpointsVisible
     const cpSelect = {

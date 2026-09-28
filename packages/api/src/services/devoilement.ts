@@ -138,7 +138,12 @@ export async function deactivateGel(editionId: string): Promise<void> {
     where: { id: editionId },
     data: { gel_actif: false, classement_gele: Prisma.DbNull },
   });
+  // Also deactivate gel on all formats
+  await prisma.formatCourse.updateMany({
+    where: { edition_id: editionId },
+    data: { gel_actif: false, classement_gele: Prisma.DbNull },
+  });
   await redis.del(keys.gelActive(editionId));
   emitToAll(editionId, 'gel:deactivated', {});
-  console.log(`[Gel] ${editionId}: classement dégelé`);
+  console.log(`[Gel] ${editionId}: classement dégelé (edition + formats)`);
 }

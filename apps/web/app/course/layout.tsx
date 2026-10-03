@@ -80,7 +80,7 @@ export default function CourseLayout({ children }: { children: ReactNode }) {
     if (!payload) return;
 
     apiFetch<{ contenu: string; type: string } | null>(`/editions/${payload.editionId}/messages/active`)
-      .then((msg) => { if (msg) showBroadcast(msg.contenu, msg.type); })
+      .then((msg) => { if (msg) showBroadcast(msg.contenu, msg.type); else setBroadcastMsg(null); })
       .catch(() => {});
 
     apiFetch<{ checkpoints: Array<{ nom: string; type: string; expires_at?: string; points?: number }> }>(`/editions/${payload.editionId}/carte`)

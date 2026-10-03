@@ -77,6 +77,11 @@ checkpointsRouter.post(
         include: FORMAT_INCLUDE,
       });
 
+      // Si c'est un QG ephemere, emettre le bandeau
+      if (checkpoint.type === 'EPHEMERE_QG') {
+        emitToAll(req.params.id, 'checkpoint:revealed', { checkpoint });
+      }
+
       res.status(201).json(checkpoint);
     } catch (err) {
       next(err);
